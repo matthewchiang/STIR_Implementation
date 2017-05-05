@@ -237,6 +237,8 @@ int rsa_sha256_enc (dynstr *sdigeststr,
 				  dynstr *senc,
 				  dynstr *sencb64,
 				  RSA *hmyprivkey);
+int ec_sign(dynstr*, dynstr*, EC_KEY*);
+int ec_verify(char*, int, char*, int, int*, X509*);
 void base64decode(char* src_buf, int src_len, char* tgt_buf, int* tgt_len);
 void base64encode(char* src_buf, int src_len, char* tgt_buf, int* tgt_len);
 int x509_get_notafter(time_t *tout, X509 *pcert);
@@ -251,6 +253,7 @@ int callidhdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 int datehdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 int identityhdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 int identityinfohdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
+int getURLFromIdentity(str*, struct sip_msg*);
 
 int append_date(str *sdate, int idatesize, time_t *tout, struct sip_msg *msg);
 int append_hf(struct sip_msg* msg, char *str1, enum _hdr_types_t type);
