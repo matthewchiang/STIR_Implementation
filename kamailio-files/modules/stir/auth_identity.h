@@ -41,6 +41,7 @@
 #include "../../parser/parse_identity.h"
 #include "../../parser/parse_identityinfo.h"
 #include "../../parser/parse_date.h"
+#include "../../parser/parse_identity_stir.h"
 
 #define NEW_RSA_PROC
 

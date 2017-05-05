@@ -274,13 +274,13 @@ int identityhdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 		return AUTH_NOTFOUND;
 	}
 	/* we must call parse_identity_header explicitly */
-	if ((!(msg->identity)->parsed) && (parse_identity_header(msg) < 0)) {
+	if ((!(msg->identity)->parsed) && (parse_identity_header_stir(msg) < 0)) {
 		LOG(L_ERR, "AUTH_IDENTITY:identityhdr_proc: Error while parsing IDENTITY body\n");
 		return AUTH_ERROR;
 	}
 
 	if (sout)
-		*sout=get_identity(msg)->hash;
+		*sout=get_identity_stir(msg)->hash;
 
 	return AUTH_OK;
 }
@@ -320,13 +320,13 @@ int getURLFromIdentity(str *sout, struct sip_msg *msg) {
 		return AUTH_NOTFOUND;
 	}
 	/* we must call parse_identity_header explicitly */
-	if ((!(msg->identity)->parsed) && (parse_identity_header(msg) < 0)) {
+	if ((!(msg->identity)->parsed) && (parse_identity_header_stir(msg) < 0)) {
 		LOG(L_ERR, "AUTH_IDENTITY:identityhdr_proc: Error while parsing IDENTITY body\n");
 		return AUTH_ERROR;
 	}
 
 	if (sout)
-		*sout=get_identity(msg)->hash;
+		*sout=get_identity_stir(msg)->url;
 
 	return AUTH_OK;
 }
@@ -545,29 +545,29 @@ static cJSON* construct_pass_hdr(const struct sip_msg *msg, const char *x5u_URI)
 };
 
 
-static cJSON* construct_pass_pay(const struct sip_msg *msg, const str *sdate) {
+static cJSON* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
 	cJSON *root = NULL;
-	str *sact, *sactopt;
+	str sact, sactopt;
 	int iRes;
 
 	root = cJSON_CreateObject();
 
-	if (fromhdr_proc(sact, sactopt, msg) != AUTH_OK) {
+	if (fromhdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
 		return NULL;
 	}
-	cJSON_AddStringToObject(root, "orig", &sact->s); //originating ID
+	cJSON_AddStringToObject(root, "orig", sact.s); //originating ID
 
-	if (tohdr_proc(sact, sactopt, msg) != AUTH_OK) {
+	if (tohdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
 		return NULL;
 	}
-	cJSON_AddStringToObject(root, "dest", &sact->s); //destination ID
+	cJSON_AddStringToObject(root, "dest", sact.s); //destination ID
 
-	iRes = tohdr_proc(sact, sactopt, msg);
+	iRes = tohdr_proc(&sact, &sactopt, msg);
 	if (iRes == AUTH_OK) {
-		cJSON_AddStringToObject(root, "iat", &sact->s); //time of call
+		cJSON_AddStringToObject(root, "iat", sact.s); //time of call
 	}
 	else if (iRes == AUTH_NOTFOUND) {
-		cJSON_AddStringToObject(root, "iat", &sdate->s); //no date: current time
+		cJSON_AddStringToObject(root, "iat", sdate->s); //no date: current time
 	}
 	else return NULL;
 
