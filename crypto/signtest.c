@@ -6,13 +6,20 @@
 #include <openssl/ecdsa.h> //sign and verify
 #include <openssl/objects.h> //for sn2nid (curve name to id)
 #include <openssl/bn.h>
-//#include <openssl/err.h> //for debugging errors
+
 
 const int DGST_LEN = 32; //sha256 return size
 const char* CURVE_TYPE = "secp256k1";
 
+uint8_t priv_bytes[32] = {
+	0x14, 0x76, 0x31, 0x76, 0x93, 0x7c, 0x98, 0x75, 
+	0x04, 0xed, 0x0e, 0xaf, 0x33, 0x2b, 0x35, 0x3a,
+	0x30, 0x3e, 0x46, 0xc2, 0xda, 0xb8, 0xb4, 0xae,
+	0x88, 0xdc, 0x98, 0xc2, 0x06, 0x1d, 0x7d, 0x34
+};
 
 
+/*
 //file format is private key in hex separated by colons
 char* readBytesFromPrivateKey(char* filepath) {
 
@@ -44,22 +51,21 @@ char* readBytesFromPrivateKey(char* filepath) {
 	fclose(fp);
 	return ret;
 
-
 }
-
+*/
 
 
 
 int main(int argc, char** argv) {
 
 
-
+/*
 	if (argc < 3) {
 		printf("usage: %s privateKey msg\n", argv[0]);
 		exit(0);
 	}
-
-	char *privKeyBytes = readBytesFromPrivateKey(argv[1]);
+*/
+	//uint8_t *privKeyBytes = priv_bytes; //readBytesFromPrivateKey(argv[1]);
 
 	//initializing eckey object to desired curve type
 
@@ -72,40 +78,41 @@ int main(int argc, char** argv) {
 	}
 
 
-/*
-	//generate new key pair
-	if (!EC_KEY_generate_key(eckey)) {
-		printf("error in ec key gen\n");
-		exit(2);
-	}
-*/
+	/*
+		//generate new key pair
+		if (!EC_KEY_generate_key(eckey)) {
+			printf("error in ec key gen\n");
+			exit(2);
+		}
+	*/
 
 
-
-	//reuse old key
+	//reuse existing private key
 	BIGNUM *priv = BN_new();
-	BN_bin2bn(privKeyBytes, 32, priv); //private key is 32B
+	BN_bin2bn(priv_bytes, sizeof(priv_bytes), priv); //private key is 32B
 	if (!EC_KEY_set_private_key(eckey, priv)) {
 		printf("failed to set private key\n");
 		exit(2);
 	}
 	
+	//generate public key
 	BN_CTX *ctx = BN_CTX_new();
 	BN_CTX_start(ctx);
 	const EC_GROUP *group = EC_KEY_get0_group(eckey);
 	EC_POINT *pub = EC_POINT_new(group);
-	EC_POINT_mul(group, pub, priv, NULL, NULL, ctx);
+	EC_POINT_mul(group, pub, priv, NULL, NULL, ctx); //calculate point and set as pub key
 	EC_KEY_set_public_key(eckey, pub);
-
 
 	printf("successfully created eckey\n");
 
 
 
-	//hash first
+	//hash message
 
-	unsigned char dgst[DGST_LEN];
-	SHA256(argv[2], strlen(argv[2]), dgst);
+	uint8_t dgst[DGST_LEN];
+	//char* message = argv[2];
+	char* message = "msg\n";
+	SHA256(message, strlen(message), dgst);
 
 	printf("successfully hashed\n");
 
@@ -121,35 +128,45 @@ int main(int argc, char** argv) {
 
 	//signing********************************************************************************
 
-	//ECDSA_SIG *sig; //either store as sig or in char buffer
-	unsigned char *sigBuff;
-	int buf_len;
-	buf_len = ECDSA_size(eckey); // = 72B
+	ECDSA_SIG *sig; //either store as sig or in char buffer
+	size_t sig_len;
+	uint8_t *sigDerBuff, *buff_copy;
 
-	sigBuff = OPENSSL_malloc(buf_len);
-	if (!ECDSA_sign(0, dgst, DGST_LEN, sigBuff, &buf_len, eckey)) {
-		printf("failed in sign\n");
-		exit(2);
+	sig = ECDSA_do_sign(dgst, sizeof(dgst), eckey);
+
+	printf("r: %s\n", BN_bn2hex(sig->r));
+    printf("s: %s\n", BN_bn2hex(sig->s));
+
+	sig_len = ECDSA_size(eckey); //= 72B
+	sigDerBuff = calloc(sig_len, sizeof(uint8_t));
+	buff_copy = sigDerBuff;
+	i2d_ECDSA_SIG(sig, &buff_copy);
+
+
+	{
+		int i;
+		for (i = 0; i < sig_len; i++)
+			printf("%02x ", sigDerBuff[i]);
+		printf("\n");
 	}
 
-	
+
 	//write to file
 	FILE *fp;
 	fp = fopen("sigOut.txt", "w");
 	int i;
-	for (i = 0; i < buf_len; i++) {
-		fputc(sigBuff[i], fp);
+	for (i = 0; i < sig_len; i++) {
+		fprintf(fp, "%02x ", sigDerBuff[i]);
 	}
 	fclose(fp);
 
-
 	//verifying******************************************************************************
 
-
+/*
 	int ret;
-	unsigned char *verBuff;
-	verBuff = sigBuff;
-	if (!(ret = ECDSA_verify(0, dgst, DGST_LEN, verBuff, buf_len, eckey))) {
+	uint8_t *verBuff;
+	verBuff = sigDerBuff;
+	if (!(ret = ECDSA_verify(0, dgst, DGST_LEN, verBuff, sig_len, eckey))) {
 		printf("verifcation failed!\n");
 	}
 
@@ -158,7 +175,7 @@ int main(int argc, char** argv) {
 	if (ret == 1) { printf("correct!\n"); }
 	else if (ret == 0) { printf("incorrect!\n"); }
 	else printf("error with ret\n");
-
+*/
 
 	return 0;
 
