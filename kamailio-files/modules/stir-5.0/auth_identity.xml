@@ -3,22 +3,22 @@
   "http://www.oasis-open.org/docbookid/id/g/4.5/docbookx.dtd">
 
 
-<refentry xml:id="module.auth_identity_stir"
+<refentry xml:id="module.stir"
           xmlns:xi="http://www.w3.org/2001/XInclude"
           xmlns:serdoc="http://sip-router.org/xml/serdoc">
   <refmeta>
-    <refentrytitle>auth_identity_stir</refentrytitle>
+    <refentrytitle>stir</refentrytitle>
     <manvolnum>7</manvolnum>
   </refmeta>
   <refnamediv>
-    <refname>auth_identity_stir</refname>
+    <refname>stir</refname>
     <refpurpose>Securely identify originator of SIP messages.</refpurpose>
   </refnamediv>
 
   <refsect1>
     <title>Description</title>
     <para>
-      The <command>auth_identity_stir</command> SER module provides
+      The <command>stir</command> SER module provides
       functionalities for securely identifying originators of SIP
       messages by implementing the mechanism described in RFC 4474-bis
       and known as SIP Identity framework.
@@ -31,15 +31,15 @@
       received message.
     </para>
     <para>
-      In order to use the <command>auth_identity_stir</command> module you
+      In order to use the <command>stir</command> module you
       have to provide a certificate. More information can be found in
       the section
-      <serdoc:link linkend="module.auth_identity_stir.certificates">Certificates
+      <serdoc:link linkend="module.stir.certificates">Certificates
       </serdoc:link> below.
     </para>
   </refsect1>
 
-  <refsect1 xml:id="module.auth_identity_stir.functions">
+  <refsect1 xml:id="module.stir.functions">
     <title>Functions</title>
 
     <refsect2 xml:id="function.auth_add_identity">
@@ -58,7 +58,7 @@
         It calculates a SHA1 hash over certain components of the message
         and encrypts it using the private key given through the
         <serdoc:modparam
-          module="auth_identity_stir">privatekey_path</serdoc:modparam>
+          module="stir">privatekey_path</serdoc:modparam>
         parameter. The resulting cyphertext is appended to the message
         as the content of the Identity header field.
       </para>
@@ -67,7 +67,7 @@
         the URL where the receiver may find the certificate in the
         Indentity-Info header field. This URL is set through the
         <serdoc:modparam
-          module="auth_identity_stir">certificate_url</serdoc:modparam>
+          module="stir">certificate_url</serdoc:modparam>
         parameter.
       </para>
       <para>
@@ -91,7 +91,7 @@
         request to be authroized. If the time given in the Date header
         field of the request differs by more than the amount of seconds
         given by the
-        <serdoc:modparam module="auth_identity_stir">msg_timeout</serdoc:modparam>
+        <serdoc:modparam module="stir">msg_timeout</serdoc:modparam>
         parameter, the function returns <literal>false</literal>. It also
         returns <literal>false</literal> if the certificate used by the
         authorizer has expired.
@@ -111,7 +111,7 @@
         request for this call has been processed within the
         time given by the
         <serdoc:modparam
-          module="auth_identity_stir">auth_validity_time</serdoc:modparam>
+          module="stir">auth_validity_time</serdoc:modparam>
         parameter.
       </para>
       <para>
@@ -165,7 +165,7 @@
         of the request differs from the current system time by more than
         the number of seconds given by the
         <serdoc:modparam
-          module="auth_identity_stir">auth_validity_time</serdoc:modparam>
+          module="stir">auth_validity_time</serdoc:modparam>
         parameter.
       </para>
     </refsect2>
@@ -218,10 +218,10 @@
   </refsect1>
 
 
-  <refsect1 xml:id="module.auth_identity_stir.parameters">
+  <refsect1 xml:id="module.stir.parameters">
     <title>Module Parameters</title>
 
-    <refsect2 xml:id="module.auth_identity_stir.accept_pem_certs">
+    <refsect2 xml:id="module.stir.accept_pem_certs">
       <title><parameter>accept_pem_certs</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>boolean</serdoc:paramtype>
@@ -233,7 +233,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.auth_validity_time">
+    <refsect2 xml:id="module.stir.auth_validity_time">
       <title><parameter>auth_validity_time</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>integer</serdoc:paramtype>
@@ -245,7 +245,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.cainfo_path">
+    <refsect2 xml:id="module.stir.cainfo_path">
       <title><parameter>cainfo_path</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>string</serdoc:paramtype>
@@ -262,7 +262,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.callid_cache_limit">
+    <refsect2 xml:id="module.stir.callid_cache_limit">
       <title><parameter>callid_cache_limit</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>integer</serdoc:paramtype>
@@ -280,7 +280,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.certificate_cache_limit">
+    <refsect2 xml:id="module.stir.certificate_cache_limit">
       <title><parameter>certificate_cache_limit</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>integer</serdoc:paramtype>
@@ -300,7 +300,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.certificate_path">
+    <refsect2 xml:id="module.stir.certificate_path">
       <title><parameter>certificate_path</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>string</serdoc:paramtype>
@@ -316,7 +316,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.certificate_url">
+    <refsect2 xml:id="module.stir.certificate_url">
       <title><parameter>certificate_url</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>string</serdoc:paramtype>
@@ -337,7 +337,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.msg_timeout">
+    <refsect2 xml:id="module.stir.msg_timeout">
       <title><parameter>msg_timeout</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>int</serdoc:paramtype>
@@ -353,7 +353,7 @@
       </para>
     </refsect2>
 
-    <refsect2 xml:id="module.auth_identity_stir.privatekey_path">
+    <refsect2 xml:id="module.stir.privatekey_path">
       <title><parameter>privatekey_path</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>string</serdoc:paramtype>
@@ -371,7 +371,7 @@
 
   </refsect1>
 
-  <refsect1 id="modules.auth_identity_stir.examples">
+  <refsect1 id="modules.stir.examples">
     <title>Examples</title>
     <para>
       The <emphasis>authentifier</emphasis> is typically included in the
@@ -466,7 +466,7 @@ route[OUTBOUND]
 ]]></programlisting>
   </refsect1>
 
-  <refsect1 id="mdoule.auth_identity_stir.how-it-works">
+  <refsect1 id="mdoule.stir.how-it-works">
     <title>The SIP Identity Mechanism</title>
     <para>
       The SIP Identity Mechanism is defined in RFC 4474 "Enhancements for
@@ -527,10 +527,10 @@ route[OUTBOUND]
     </para>
   </refsect1>
 
-  <refsect1 id="modules.auth_identity_stir.credentials">
+  <refsect1 id="modules.stir.credentials">
     <title>Certificates</title>
     <para>
-      In order to use the <command>auth_identity_stir</command> module, you need a
+      In order to use the <command>stir</command> module, you need a
       certificate for your domain. There is two options, how to get one: you
       buy one from a certification authority or you create your own
       certification authority and use a self-signed certificate.  If you plan
@@ -548,9 +548,9 @@ route[OUTBOUND]
     <para>
       Once you have the certificate and private key, you set the module
       parameter
-      <serdoc:modparam module="auth_identity_stir">certificate_path</serdoc:modparam>
+      <serdoc:modparam module="stir">certificate_path</serdoc:modparam>
       to point to the file containing the certificate and
-      <serdoc:modparam module="auth_identity_stir">privatekey_path</serdoc:modparam>
+      <serdoc:modparam module="stir">privatekey_path</serdoc:modparam>
       to point to the file with the private key.
     </para>
     <para>
@@ -566,7 +566,7 @@ route[OUTBOUND]
       You then place the DER encoded certificate into a publicly
       available directory on your webserver and state the URL to the
       file in the parameter
-      <serdoc:modparam module="auth_identity_stir">certificate_url</serdoc:modparam>.
+      <serdoc:modparam module="stir">certificate_url</serdoc:modparam>.
     </para>
   </refsect1>
 
@@ -577,7 +577,7 @@ route[OUTBOUND]
   <refsect1 role="admin-guide">
     <title>Compilation</title>
     <para>
-      This <command>auth_identity_stir</command> module needs the following
+      This <command>stir</command> module needs the following
       headers and libraries:
     </para>
     <itemizedlist>
