@@ -26,7 +26,7 @@
     <para>
       The module provides two services:
       The <emphasis>authorizer</emphasis> authorizes a message and adds
-      Identity headers to forwarded requests.
+      Identity header to forwarded requests.
       The <emphasis>verifier</emphasis> verifies the identity of a
       received message.
     </para>
@@ -55,7 +55,7 @@
         a request by adding identity information to it.
       </para>
       <para>
-        It calculates a SHA1 hash over certain components of the message
+        It calculates a SHA256 hash over certain components of the message
         and encrypts it using the private key given through the
         <serdoc:modparam
           module="stir">privatekey_path</serdoc:modparam>
@@ -63,9 +63,9 @@
         as the content of the Identity header field.
       </para>
       <para>
-        To allow the receiver to decypher the identity information, it adds
-        the URL where the receiver may find the certificate in the
-        Indentity-Info header field. This URL is set through the
+        To allow the receiver to decypher the identity information, it appends
+        the URL where the receiver may find the certificate to the
+        Identity header field. This URL is set through the
         <serdoc:modparam
           module="stir">certificate_url</serdoc:modparam>
         parameter.
@@ -73,8 +73,7 @@
       <para>
         <emphasis>Note:</emphasis> After the function has been called,
         the following header fields must not be modified:
-        From, To, Call-ID, CSeq, Date, Contact. Additionally, the
-        message body must remain unmodified, too.
+        From, To, and Date. 
       </para>
     </refsect2>
 
