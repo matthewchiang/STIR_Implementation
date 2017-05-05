@@ -182,7 +182,7 @@
         checks the integrity of the request currently being processed.
       </para>
       <para>
-        It does so by calculating a SHA1 hash over certain parts of the
+        It does so by calculating a SHA256 hash over certain parts of the
         message and comparing it with the hash value that results from
         decrypting the content of the Identity header field using the
         certificate previously retrieved using the
@@ -204,7 +204,7 @@
       </para>
       <para>
         The <function>vrfy_get_certificate()</function> tries to get
-        the certificate from the URL given in the Identity-Info header
+        the certificate from the URL at the end of the Identity header
         field of the currently processed request.
       </para>
       <para>
@@ -236,7 +236,7 @@
       <title><parameter>auth_validity_time</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>integer</serdoc:paramtype>
-        <serdoc:paramdefault>3600</serdoc:paramdefault>
+        <serdoc:paramdefault>60</serdoc:paramdefault>
       </serdoc:paraminfo>
       <para>
         The <parameter>auth_validity_time</parameter> parameter
@@ -340,7 +340,7 @@
       <title><parameter>msg_timeout</parameter></title>
       <serdoc:paraminfo>
         <serdoc:paramtype>int</serdoc:paramtype>
-        <serdoc:paramdefault>600</serdoc:paramdefault>
+        <serdoc:paramdefault>60</serdoc:paramdefault>
       </serdoc:paraminfo>
       <para>
         The <parameter>msg_timeout</parameter> parameter contains the
@@ -385,14 +385,10 @@ route[OUTBOUND]
 {
 	if ($f.did && !$t.did) {
 		# Authentication service
-		if (method=="INVITE" || method=="OPTION") {
-			# Identity and Identity-info headers must not exist
+		if (method=="INVITE") {
+			# Identity headers must not exist
 			if (@identity) {
 				sl_reply("403", "Invalid Identity header");
-				drop;
-			}
-			if (@identity_info) {
-				sl_reply("403", "Invalid Identity-info header");
 				drop;
 			}
 
@@ -430,10 +426,6 @@ route[OUTBOUND]
 	if (method=="INVITE" || method=="OPTIONS") {
 		if (!@identity) {
 			sl_reply("428", "Use Identity Header");
-			drop;
-		}
-		if (!@identity_info) {
-			sl_reply("436", "Bad Identity-Info");
 			drop;
 		}
 
@@ -485,8 +477,8 @@ route[OUTBOUND]
       use the address in the context of the message.
     </para>
     <para>
-      If the proxy is satisfied, it creates two header fields: Identity and
-      Identity-Info. The Identity header field contains a signed hash over
+      If the proxy is satisfied, it a single new Identity header.
+      The Identity header field contains a signed hash over
       the following components of the message:
     </para>
     <itemizedlist>
@@ -497,25 +489,13 @@ route[OUTBOUND]
         the address given in the To header field,
       </listitem>
       <listitem>
-        the Call-ID,
-      </listitem>
-      <listitem>
-        the content of the CSeq header field,
-      </listitem>
-      <listitem>
         the content of the Date header field,
-      </listitem>
-      <listitem>
-        the address given in the Contact header field if present, and
-      </listitem>
-      <listitem>
-        the body of the message.
       </listitem>
     </itemizedlist>
     <para>
       The hash is signed with a certificate for the domain. A URL pointing
       to a place where an interested party can download a copy of the
-      certificate is placed into the Identity-Info header field.
+      certificate is appended to the Identity header.
     </para>
     <para>
       If the message arrives at a proxy or user agent that wishes to verify
@@ -533,7 +513,7 @@ route[OUTBOUND]
       certificate for your domain. There is two options, how to get one: you
       buy one from a certification authority or you create your own
       certification authority and use a self-signed certificate.  If you plan
-      to provide real  inter-domain calls for your domain, you should pick the
+      to provide real inter-domain calls for your domain, you should pick the
       first option. Although it is more expensive, it guarantees proper
       interaction between domains.
     </para>
