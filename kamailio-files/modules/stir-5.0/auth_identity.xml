@@ -460,8 +460,8 @@ route[OUTBOUND]
   <refsect1 id="mdoule.stir.how-it-works">
     <title>The SIP Identity Mechanism</title>
     <para>
-      The SIP Identity Mechanism is defined in RFC 4474 "Enhancements for
-      Authenticated Identity Management in the Session Initiation Protocol
+      The SIP Identity Mechanism is defined in RFC 4474-bis, an extension
+      on RFC 4474, "Enhancements for Authenticated Identity Management in the Session Initiation Protocol
       (SIP)". Its main purpose is to affirm the identity of the originator
       of a request as stated in the From header field of the request.
       While basic SIP provides a mechanism for a user agent to proof its
@@ -477,7 +477,7 @@ route[OUTBOUND]
       use the address in the context of the message.
     </para>
     <para>
-      If the proxy is satisfied, it a single new Identity header.
+      If the proxy is satisfied, it adds a single new Identity header.
       The Identity header field contains a signed hash over
       the following components of the message:
     </para>
