@@ -22,9 +22,9 @@
 
 /*!
  * \file
- * \brief SIP-router auth-identity :: Module interface
- * \ingroup auth-identity
- * Module: \ref auth-identity
+ * \brief SIP-router STIR :: Module interface
+ * \ingroup STIR
+ * Module: \ref STIR
  */
 
 /*! \defgroup auth-identity SIP-router SIP identity support
@@ -121,13 +121,13 @@ ttimeparams glb_ttimeparams={0,0,0};
  * Exported functions
  */
 static cmd_export_t glb_cmds[] = {
-	{"auth_date_proc", date_proc, 0, 0, REQUEST_ROUTE},
-	{"auth_add_identity", add_identity, 0, 0, REQUEST_ROUTE},
-	{"vrfy_get_certificate", get_certificate, 0, 0, REQUEST_ROUTE},
-	{"vrfy_check_msgvalidity", check_validity, 0, 0, REQUEST_ROUTE},
-	{"vrfy_check_certificate", check_certificate, 0, 0, REQUEST_ROUTE},
-	{"vrfy_check_date", check_date, 0, 0, REQUEST_ROUTE},
-	{"vrfy_check_callid", check_callid, 0, 0, REQUEST_ROUTE},
+	{"auth_date_proc_stir", date_proc, 0, 0, REQUEST_ROUTE},
+	{"auth_add_identity_stir", add_identity, 0, 0, REQUEST_ROUTE},
+	{"vrfy_get_certificate_stir", get_certificate, 0, 0, REQUEST_ROUTE},
+	{"vrfy_check_msgvalidity_stir", check_validity, 0, 0, REQUEST_ROUTE},
+	{"vrfy_check_certificate_stir", check_certificate, 0, 0, REQUEST_ROUTE},
+	{"vrfy_check_date_stir", check_date, 0, 0, REQUEST_ROUTE},
+	{"vrfy_check_callid_stir", check_callid, 0, 0, REQUEST_ROUTE},
 	{0, 0, 0, 0, 0}
 };
 
@@ -329,6 +329,10 @@ static int mod_init(void)
 	if (initdynstr(&glb_sdate, AUTH_TIME_LENGTH)) // =64
 		return -7;
 
+	// init buffer for base64(sign(hash(msg)))
+	if (initdynstr(&glb_b64encedmsg, B64_MSG_SIZE))
+		return -8;
+
 
 	/*
   	 * Get my certificate
@@ -391,9 +395,7 @@ static int mod_init(void)
 		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to close file\n");
 
 
-	// init buffer for base64(sign(hash(msg)))
-	if (initdynstr(&glb_b64encedmsg, B64_MSG_SIZE))
-		return -17;
+
 
 	return 0;
 } // end mod_init()
@@ -595,8 +597,8 @@ static int check_validity(struct sip_msg* msg, char* srt1, char* str2)
 		base64decode(sidentity.s, sidentity.len, sencedsha, &iencedshalen);
 
 		/* assemble the digest string to be able to compare it with decrypted one */
-		if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
-		//if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl, glb_ecprivkey))
+		//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
+		if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl, glb_ecprivkey))
 			iRet=-5;
 			break;
 		}
@@ -865,8 +867,8 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	// Full form for extensions or if date doesn't exist in msg
 
 
-	//if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
-	//	return -6;
+	if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
+		return -6;
 
 	// we assemble the value of the Identity header
 	// first part: Identity:[space]
