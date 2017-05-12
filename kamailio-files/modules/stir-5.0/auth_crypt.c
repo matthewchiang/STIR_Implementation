@@ -48,7 +48,7 @@
 int retrieve_x509(X509 **pcert, str *scert, int bacceptpem)
 {
 	BIO *bcer=NULL;
-	char serr[256];		//char serr[160];   
+	char serr[160];
 	int iRet=0;
 
 
@@ -199,7 +199,7 @@ int verify_x509(X509 *pcert, X509_STORE *pcacerts)
 
 //************************************************************* RSA-SHA256 ******************************************************************/
 
-
+/*
 
 
 int rsa_sha256_enc (dynstr *sdigeststr,
@@ -210,7 +210,7 @@ int rsa_sha256_enc (dynstr *sdigeststr,
 
 	unsigned char sstrcrypted[32]; //sha digest length
 	int ires;
-	char serr[256];
+	char serr[160];
 
 
 	SHA256((unsigned char*)getstr_dynstr(sdigeststr).s,
@@ -253,7 +253,7 @@ int rsa_sha256_dec (char *sencedsha, int iencedshalen,
 	EVP_PKEY *pkey;
 	RSA* hpubkey;
 	unsigned long lerr;
-	char serr[256];
+	char serr[160];
 
 
 	pkey=X509_get_pubkey(pcertx509);
@@ -283,7 +283,7 @@ int rsa_sha256_dec (char *sencedsha, int iencedshalen,
 		return -5;
 	}
 #else
-	/* it is bigger than the output buffer */
+	// it is bigger than the output buffer
 	if (RSA_size(hpubkey) > sshasize) {
 		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Unexpected Identity hash length (%d > %d)\n", RSA_size(hpubkey), sshasize);
 		RSA_free(hpubkey);
@@ -307,7 +307,7 @@ int rsa_sha256_dec (char *sencedsha, int iencedshalen,
 	return 0;
 }
 
-
+*/
 
 //************************************************************** END RSA-SHA256 ********************************************************************/
 
@@ -355,7 +355,7 @@ int ec_verify(char *sencedsha, int iencedshalen, char *ssha, int sshasize, int *
 	EVP_PKEY *pkey;
 	EC_KEY *eckey;
 	unsigned long lerr;
-	char serr[256];
+	char serr[160];
 
 	pkey=X509_get_pubkey(pcertx509);
 	if (pkey == NULL) {
