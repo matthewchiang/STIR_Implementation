@@ -41,7 +41,6 @@
 #include "../../core/data_lump.h"
 #include "../../core/msg_translator.h"
 #include "auth_identity.h"
-#include "cJSON.h"
 
 
 struct hdr_field glb_contact;
@@ -533,88 +532,139 @@ int digeststr_asm(dynstr *sout, struct sip_msg *msg, str *sdate, int iflags)
 	//.*** orig: {tn: 122121....}
 
 
-static cJSON* construct_pass_hdr(const struct sip_msg *msg, const char *x5u_URI) {
-	cJSON *root = NULL;
+static char* construct_pass_hdr(const struct sip_msg *msg, const char *x5u_URI) {
+	char *ret = malloc(256);
 
-	root = cJSON_CreateObject();
-	cJSON_AddStringToObject(root, "typ", "passport");
-	cJSON_AddStringToObject(root, "alg", "ES256");
-	cJSON_AddStringToObject(root, "x5u", x5u_URI);
+	strcat(strcpy(ret, "{"), "\"alg\":\"ES256\",");
+	strcat(ret, "\"typ\":\"passport\",");
+	strcat(strcat(strcat(ret, "\"x5u\":\""), x5u_URI), "\"}");
 
-	return root;
+	return ret;
 };
 
 
-static cJSON* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
-	cJSON *root = NULL;
+static char* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
+	char *ret = malloc(256);
 	str sact, sactopt;
 	int iRes;
 
-	root = cJSON_CreateObject();
-
-	//check if FROM (ORIG) is URI, tn, or both
+	//check if FROM (ORIG) is URI or tn
 	//if contains @, URI ; otherwise tn
-	//create subroot
+
+	strcpy(ret, "{\"dest\":{\"uri\":[\"");
 
 	if (fromhdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
 		return NULL;
 	}
-	cJSON_AddStringToObject(root, "orig", sact.s); //originating ID
+	strcat(strcat(ret, sact.s), "\"]},");
+	strcat(ret, "\"iat\":");
+
+	iRes = tohdr_proc(&sact, &sactopt, msg);
+	if (iRes == AUTH_OK) {
+		strcat(ret, sact.s); //time of call
+	}
+	else if (iRes == AUTH_NOTFOUND) {
+		strcat(ret, sdate->s); //no date: current time
+	}
+	else {
+		LOG(L_ERR, "STIR: construct_pass_pay: date not found!\n");
+		free(ret);
+		return NULL;
+	}
+
+	strcat(ret, ",\"orig\":{\"uri\":[\"");
 
 	if (tohdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
 		return NULL;
 	}
-	cJSON_AddStringToObject(root, "dest", sact.s); //destination ID
+	strcat(strcat(ret, sact.s), "\"]}}");
 
-	iRes = tohdr_proc(&sact, &sactopt, msg);
-	if (iRes == AUTH_OK) {
-		cJSON_AddStringToObject(root, "iat", sact.s); //time of call
-	}
-	else if (iRes == AUTH_NOTFOUND) {
-		cJSON_AddStringToObject(root, "iat", sdate->s); //no date: current time
-	}
-	else return NULL;
+	//can potentially replace dest with gdrp for group calls
 
-	//can potentially replace with gdrp for group calls
-
-	return root;
+	return ret;
 
 };
 
 
-
+//rfc 7515 part 5.1
 // Output: sout has string to hash + sign
-int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI) {
+int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI, ECKEY *eckey) {
 
-	//rfc 7515 part 5.1
-	//compute BASE64URL(PAYLOAD)
-	//compute BASE64URL(UTF8(JWS Protected header))
-	//compute JSW SIG = BASE64URL(ASCII(BASE64URL(UTF8(HEADER))) . BASE64URL(pay))
-	//compute serialization = BASE64URL(hdr . payload . sign)
-
-	cJSON *hdr = construct_pass_hdr(msg, x5u_URI);
-	cJSON *pay = construct_pass_pay(msg, sdate);
+	char *hdr = construct_pass_hdr(msg, x5u_URI);
+	char *pay = construct_pass_pay(msg, sdate);
 	
-	int sizehdr = 0;
-	int sizepay = 0;
-	int sizejws = 0;
+	char* outstr_pay = (char*)malloc(256);
+	int outlen_pay = 0;
+	char* outstr_hdr = (char*)malloc(256);
+	int outlen_hdr = 0;
 
-	char* base64_hdr = "";
-	char* base64_pay = "";
-	char* jws = "";
-	char* base64_jws = "";
-	char ser[1024]; //serialized output
+	//base64(hdr) and base64(pay)
+	base64encode(pay, strlen(pay), outstr_pay, &outlen_pay);
+	base64encode(hdr, strlen(hdr), outstr_hdr, &outlen_hdr);
 
-	//base64encode(src str, str len, target str, target len)
-	base64encode((char*)hdr, sizeof(hdr), base64_hdr, &sizehdr);
-	base64encode((char*)pay, sizeof(pay), base64_pay, &sizepay);
+	//create [hdr . pay]
+	char* str_to_sign = (char*)malloc(outlen_hdr+outlen_pay+1);
+	strcat(strcat(strcpy(str_to_sign, outstr_hdr), "."), outstr_pay);
 
-	strcpy(jws, base64_hdr);
-	strcat(strcat(jws, "."), base64_pay);
-	base64encode(jws, sizeof(jws), base64_jws, &sizejws);
+	//hash [hdr . pay]
+	char* hashed_str = (char*)malloc(32);
+	SHA256(str_to_sign, strlen(str_to_sign), hashed_str);
 
-	strcpy(ser, base64_hdr);
-	strcat(strcat(strcat(strcat(ser, "."), base64_pay), "."), base64_jws);
+	//sign [hdr . pay]
+	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
+	sig = ECDSA_do_sign(hashed_str, 32, eckey);
+	
+	//extract r and s as octects
+	uint8_t* to_r = (uint8_t*)malloc(32);
+	uint8_t* to_s = (uint8_t*)malloc(32);
+	BN_bn2bin(sig->r, to_r);
+	BN_bn2bin(sig->s, to_s);
+
+	// r_and_s = r || s
+	uint8_t* r_and_s = (uint8_t*)malloc(64);
+	strcat(strcpy(r_and_s, to_r), to_s);
+	int r_and_s_len = strlen(r_and_s);
+
+	//base64(jws)
+	char* outstr_jws = (char*)malloc(256);
+	int outlen_jws = 0;
+
+	base64encode(r_and_s, r_and_s_len, outstr_jws, &outlen_jws);
+
+	//prepare sout for return
+	resetstr_dynstr(sout);
+
+	if (sdate == NULL) {
+		//date exists: just return outstr_jws
+		if (app2dynstr(sout,&outstr_jws)) {
+			LOG(L_ERR, "STIR: assemble_passport: error -1\n");
+			return -1;
+		}
+	}
+
+	else {
+		//no date in msg: return whole passport as hdr . pay . jws
+		if (app2dynstr(sout,&outstr_hdr)) {
+			LOG(L_ERR, "STIR: assemble_passport: error -2\n");
+			return -2;
+		}
+		if (app2dynstr(sout,".")) {
+			LOG(L_ERR, "STIR: assemble_passport: error -3\n");
+			return -3;
+		}
+		if (app2dynstr(sout,&outstr_pay)) {
+			LOG(L_ERR, "STIR: assemble_passport: error -4\n");
+			return -4;
+		}
+		if (app2dynstr(sout,".")) {
+			LOG(L_ERR, "STIR: assemble_passport: error -5\n");
+			return -5;
+		}
+		if (app2dynstr(sout,&outstr_jws)) {
+			LOG(L_ERR, "STIR: assemble_passport: error -6\n");
+			return -6;
+		}
+	}
 
 	return 0;	
 }
@@ -662,7 +712,8 @@ int append_hf(struct sip_msg* msg, char *str1, enum _hdr_types_t type)
 }
 
 
-/* get the current system date and appends it to the message */
+// get the current system date and appends it to the message
+// return current system date in tout and sdate arguments
 int append_date(str *sdate, int idatesize, time_t *tout, struct sip_msg *msg)
 {
 	char date_hf[AUTH_TIME_LENGTH];

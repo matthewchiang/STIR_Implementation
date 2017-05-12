@@ -596,7 +596,7 @@ static int check_validity(struct sip_msg* msg, char* srt1, char* str2)
 
 		/* assemble the digest string to be able to compare it with decrypted one */
 		if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
-		//if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl))
+		//if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl, glb_ecprivkey))
 			iRet=-5;
 			break;
 		}
@@ -742,7 +742,7 @@ void callid_gc(unsigned int tick, void *param)
 
 
 // Called in kamailio.cfg by auth_date_proc()
-// Checks the Date header of the message
+// Checks the Date header of the message ; if no Date, add current time
 // Checks if Date within minute of current time and if certificate still valid
 static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 {
@@ -820,7 +820,7 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 {
 	uint8_t iRes; // 0 to 3 enum for checking date exists
-	str sstr; // for appending to digest str
+	str sstr; // for appending values to identity header
 
 	if (glb_authservice_disabled) {
 		LOG(L_WARN, "STIR:add_identity: Authentication Service is disabled\n");
@@ -845,27 +845,28 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 				return -3;
 			}
 			//  assemble the digest string and the DATE header is missing in the orignal message (add current date)
-			if (digeststr_asm(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), AUTH_OUTGOING_BODY | AUTH_ADD_DATE))
-			//if (assemble_passport(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), glb_sservercerturl))
+			//if (digeststr_asm(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), AUTH_OUTGOING_BODY | AUTH_ADD_DATE))
+			if (assemble_passport(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), glb_sservercerturl, glb_ecprivkey))
 				return -4;
 			break;
 
 		//Date exists: don't need to add new one
 		default:
 			//  assemble the digest string and the DATE header is available in the message
-			if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_OUTGOING_BODY))
-			//if (assemble_passport(&glb_sdgst, msg, NULL, glb_sservercerturl))
+			//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_OUTGOING_BODY))
+			if (assemble_passport(&glb_sdgst, msg, NULL, glb_sservercerturl, glb_ecprivkey))
 				return -5;
 			break;
 	}
 
-	//old: glb_sdgst = all headers (not including identity)
-	//new: glb_sdgst = base64 of PASSporTs
+	//now glb_sdgst = JWS = base64 of PASSporTs
 
-	// NOTE: compact form: only return JWS signature part
-	// glb_b64encedmsg = base64(signed(hashed(msg)))
-	if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
-		return -6;
+	// NOTE: compact form when date exists in msg: only return JWS signature par
+	// Full form for extensions or if date doesn't exist in msg
+
+
+	//if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
+	//	return -6;
 
 	// we assemble the value of the Identity header
 	// first part: Identity:[space]
