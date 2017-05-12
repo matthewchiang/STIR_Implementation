@@ -588,7 +588,7 @@ static char* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
 
 //rfc 7515 part 5.1
 // Output: sout has string to hash + sign
-int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI, ECKEY *eckey) {
+int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI, EC_KEY *eckey) {
 
 	char *hdr = construct_pass_hdr(msg, x5u_URI);
 	char *pay = construct_pass_pay(msg, sdate);
@@ -608,20 +608,20 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 
 	//hash [hdr . pay]
 	char* hashed_str = (char*)malloc(32);
-	SHA256(str_to_sign, strlen(str_to_sign), hashed_str);
+	SHA256((unsigned char*)str_to_sign, strlen(str_to_sign), (unsigned char*)hashed_str);
 
 	//sign [hdr . pay]
 	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
-	sig = ECDSA_do_sign(hashed_str, 32, eckey);
+	sig = ECDSA_do_sign((unsigned char*)hashed_str, 32, eckey);
 	
 	//extract r and s as octects
-	uint8_t* to_r = (uint8_t*)malloc(32);
-	uint8_t* to_s = (uint8_t*)malloc(32);
-	BN_bn2bin(sig->r, to_r);
-	BN_bn2bin(sig->s, to_s);
+	char* to_r = (char*)malloc(32);
+	char* to_s = (char*)malloc(32);
+	BN_bn2bin(sig->r, (uint8_t*)to_r);
+	BN_bn2bin(sig->s, (uint8_t*)to_s);
 
 	// r_and_s = r || s
-	uint8_t* r_and_s = (uint8_t*)malloc(64);
+	char* r_and_s = (char*)malloc(64);
 	strcat(strcpy(r_and_s, to_r), to_s);
 	int r_and_s_len = strlen(r_and_s);
 
@@ -636,7 +636,10 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 
 	if (sdate == NULL) {
 		//date exists: just return outstr_jws
-		if (app2dynstr(sout,&outstr_jws)) {
+		str add;
+		add.s = outstr_jws;
+		add.len = outlen_jws;
+		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -1\n");
 			return -1;
 		}
@@ -644,23 +647,30 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 
 	else {
 		//no date in msg: return whole passport as hdr . pay . jws
-		if (app2dynstr(sout,&outstr_hdr)) {
+		str add;
+		add.s = outstr_hdr;
+		add.len = outlen_hdr;
+		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -2\n");
 			return -2;
 		}
-		if (app2dynstr(sout,".")) {
+		if (app2dynchr(sout,'.')) {
 			LOG(L_ERR, "STIR: assemble_passport: error -3\n");
 			return -3;
 		}
-		if (app2dynstr(sout,&outstr_pay)) {
+		add.s = outstr_pay;
+		add.len = outlen_pay;
+		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -4\n");
 			return -4;
 		}
-		if (app2dynstr(sout,".")) {
+		if (app2dynchr(sout,'.')) {
 			LOG(L_ERR, "STIR: assemble_passport: error -5\n");
 			return -5;
 		}
-		if (app2dynstr(sout,&outstr_jws)) {
+		add.s = outstr_jws;
+		add.len = outlen_jws;
+		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -6\n");
 			return -6;
 		}

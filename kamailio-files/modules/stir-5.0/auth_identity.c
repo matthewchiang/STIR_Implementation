@@ -405,7 +405,7 @@ static void mod_deinit(void)
 	if (glb_tcert.scertpem.s)
 		pkg_free(glb_tcert.scertpem.s);
 	free_dynstr(&glb_sdgst);
-	xfree_dynstr(&glb_sidentity);
+	free_dynstr(&glb_sidentity);
 	free_dynstr(&glb_sdate);
 	free_dynstr(&glb_b64encedmsg);
  	free_table(glb_tcert_table);
