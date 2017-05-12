@@ -552,6 +552,10 @@ static cJSON* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
 
 	root = cJSON_CreateObject();
 
+	//check if FROM (ORIG) is URI, tn, or both
+	//if contains @, URI ; otherwise tn
+	//create subroot
+
 	if (fromhdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
 		return NULL;
 	}
