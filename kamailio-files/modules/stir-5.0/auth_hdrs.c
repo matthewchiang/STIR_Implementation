@@ -618,8 +618,8 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, time_t tdate, char *x5u
 	char *hdr = construct_pass_hdr(msg, x5u_URI);
 	char *pay = construct_pass_pay(msg, tdate);
 
-	LOG(L_ERR, "val of hdr: %s\n", hdr);
-	LOG(L_ERR, "val of pay: %s\n", pay);
+	//LOG(L_ERR, "val of hdr: %s\n", hdr);
+	//LOG(L_ERR, "val of pay: %s\n", pay);
 
 	
 	char* outstr_pay = (char*)malloc(256);
@@ -632,14 +632,14 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, time_t tdate, char *x5u
 	base64encode(hdr, strlen(hdr), outstr_hdr, &outlen_hdr);
 
 	//create [hdr . pay]
-	char* str_to_sign = (char*)malloc(outlen_hdr+outlen_pay+1);
+	char* str_to_sign = (char*)malloc(outlen_hdr+outlen_pay+2);
 	strcat(strcat(strcpy(str_to_sign, outstr_hdr), "."), outstr_pay);
 
 	//hash [hdr . pay]
-	char* hashed_str = (char*)malloc(32);
+	char* hashed_str = (char*)malloc(33);
 	SHA256((unsigned char*)str_to_sign, strlen(str_to_sign), (unsigned char*)hashed_str);
 
-	//sign [hdr . pay]
+	//sign (digest)
 	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
 	sig = ECDSA_do_sign((unsigned char*)hashed_str, 32, eckey);
 	
