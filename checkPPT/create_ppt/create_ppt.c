@@ -66,22 +66,30 @@ void base64encode(char* src_buf, int src_len, char* tgt_buf, int* tgt_len) {
 }
 
 
-
+//char* encodestr_pay = "{\"dest\":{\"uri\":[\"sip:alice@example.com\"]},\"iat\":1471375418,\"orig\":{\"tn\":\"12155551212\"}}";
+//char* encodestr_hdr = "{\"alg\":\"ES256\",\"typ\":\"passport\",\"x5u\":\"https://cert.example.org/passport.cer\"}";
 
 
 void sign_example() {
 
-	printf("in sign\n");
 
-	//simple base64 encode test
-	char* encodestr_pay = "{\"dest\":{\"uri\":[\"sip:alice@example.com\"]},\"iat\":1471375418,\"orig\":{\"tn\":\"12155551212\"}}";
-	int encodelen_pay = strlen(encodestr_pay);
-	char* outstr_pay = (char*)malloc(256);
-	int outlen_pay = 0;
-	char* encodestr_hdr = "{\"alg\":\"ES256\",\"typ\":\"passport\",\"x5u\":\"https://cert.example.org/passport.cer\"}";
+	//hdr
+	char* encodestr_hdr = "{\"alg\":\"ES256\",\"typ\":\"passport\",\"x5u\":\"matthewchiang.github.io/STIR/rpi3_ec_prime256v1_cert.der\"}";
 	int encodelen_hdr = strlen(encodestr_hdr);
 	char* outstr_hdr = (char*)malloc(256);
 	int outlen_hdr = 0;
+
+	base64encode(encodestr_hdr, encodelen_hdr, outstr_hdr, &outlen_hdr);
+
+	printf("outstr_hdr: %s\n", outstr_hdr);
+	printf("outlen_hdr: %i\n", outlen_hdr);	
+
+
+	//pay
+	char* encodestr_pay = "{\"dest\":{\"uri\":[\"sip:recv3@10.0.0.180\"]},\"iat\":1495176051,\"orig\":{\"uri\":[\"sip:send3@10.0.0.180\"]}}";
+	int encodelen_pay = strlen(encodestr_pay);
+	char* outstr_pay = (char*)malloc(256);
+	int outlen_pay = 0;
 
 	base64encode(encodestr_pay, encodelen_pay, outstr_pay, &outlen_pay);
 
@@ -89,24 +97,20 @@ void sign_example() {
 	printf("outlen_pay: %i\n", outlen_pay);	
 
 
-	base64encode(encodestr_hdr, encodelen_hdr, outstr_hdr, &outlen_hdr);
-
-	printf("outstr_hdr: %s\n", outstr_hdr);
-	printf("outlen_hdr: %i\n", outlen_hdr);	
 
 	//create plaintext = hdr . pay
 	char* plainJWS = (char*)malloc(outlen_pay+outlen_hdr+2);
 	strcat(strcat(strcpy(plainJWS, outstr_hdr), "."), outstr_pay);
 
-	printf("printing hdr . pay: %s\n", plainJWS);
-	printf("len of plaintext: %i\n", strlen(plainJWS));
+	printf("\nprinting 'hdr . pay' : %s\n", plainJWS);
+	printf("len of 'hdr . pay' : %i\n", strlen(plainJWS));
 
 
 	//hash
 	char* hashJWS = (char*)malloc(256);
 	SHA256(plainJWS, strlen(plainJWS), hashJWS);
 
-	printf("length of hashed text: %i\n", strlen(hashJWS));
+	printf("\nlength of hashed text (should be 32 = output of SHA256): %i\n", strlen(hashJWS));
 
 
 	//get priv key
@@ -128,13 +132,7 @@ void sign_example() {
 	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
 	sig = ECDSA_do_sign(hashJWS, strlen(hashJWS), eckey);	
 
-	//extract r and s
-	//	printf("r hex: %s\n", BN_bn2hex(sig->r));
-	//	printf("s hex: %s\n", BN_bn2hex(sig->s));
-	//	printf("r dec: %s\n", BN_bn2dec(sig->r));
-	//	printf("s dec: %s\n", BN_bn2dec(sig->s));
-
-	//extract as octects
+	//extract r and s as octect arrays
 	uint8_t* to_r = (uint8_t*)malloc(32);
 	uint8_t* to_s = (uint8_t*)malloc(32);
 
@@ -151,8 +149,9 @@ void sign_example() {
 	int r_cat_s_len = 64;
 
 
-
+	//debug:
 	//print r || s
+	/*
 	{
 		int i = 0;
 		for (i = 0; i < 32; i++) {
@@ -173,7 +172,7 @@ void sign_example() {
 		printf("\n");
 
 	}
-
+	*/
 
 
 	//base64(jws)
@@ -182,7 +181,7 @@ void sign_example() {
 
 	base64encode(r_cat_s, r_cat_s_len, outstr_jws, &outlen_jws);
 
-	printf("printing base64 jws: %s\n", outstr_jws);
+	printf("\nprinting base64 jws: %s\n", outstr_jws);
 	printf("printing base64 jws len (should be 86): %i\n", outlen_jws);
 
 	free(r_cat_s);
