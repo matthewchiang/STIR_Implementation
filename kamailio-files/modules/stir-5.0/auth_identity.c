@@ -104,6 +104,8 @@ dynstr	glb_sidentity={{0,0},0}; /* Identity message header */
 dynstr	glb_sdate={{0,0},0}; /* Date  message header */
 dynstr	glb_b64encedmsg={{0,0},0}; /* buffer for base64, ec signed string */
 
+time_t glb_tdate = 0;
+
 ttable *glb_tcert_table=0;				/* Certificate Table */
 char glb_certisdownloaded=0;
 tcert_item glb_tcert={{0,0},{0,0},0};	/* Actually Used Certificate */
@@ -597,8 +599,8 @@ static int check_validity(struct sip_msg* msg, char* srt1, char* str2)
 		base64decode(sidentity.s, sidentity.len, sencedsha, &iencedshalen);
 
 		/* assemble the digest string to be able to compare it with decrypted one */
-		//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
-		if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl, glb_ecprivkey))
+		if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
+		//if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl.s, glb_ecprivkey)) {
 			iRet=-5;
 			break;
 		}
@@ -769,6 +771,7 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 		case AUTH_NOTFOUND:
 			if (append_date(&getstr_dynstr(&glb_sdate), glb_sdate.size, &tmsg, msg))
 				return -3;
+			glb_tdate = tmsg;
 			break;
 
 		// sip msg already has Date header, so we check that
@@ -821,6 +824,7 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
  */
 static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 {
+	int errCode = 0;
 	uint8_t iRes; // 0 to 3 enum for checking date exists
 	str sstr; // for appending values to identity header
 
@@ -846,18 +850,39 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 				LOG(L_ERR, "STIR:add_identity: Date header is not found (has auth_date_proc been called?)\n");
 				return -3;
 			}
+
+
+
 			//  assemble the digest string and the DATE header is missing in the orignal message (add current date)
-			//if (digeststr_asm(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), AUTH_OUTGOING_BODY | AUTH_ADD_DATE))
-			if (assemble_passport(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), glb_sservercerturl, glb_ecprivkey))
+
+			if ((errCode = assemble_passport(&glb_sdgst, msg, glb_tdate, glb_sservercerturl, glb_ecprivkey))) {
+				LOG(L_ERR, "errCode val: %i\n", errCode);
+				LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+
+				//if (digeststr_asm(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), AUTH_OUTGOING_BODY | AUTH_ADD_DATE)) {
+				//if (assemble_passport(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), glb_sservercerturl, glb_ecprivkey))
+
+				LOG(L_ERR, "error setting up digest string\n");
 				return -4;
+			}
 			break;
 
 		//Date exists: don't need to add new one
 		default:
+
+
+
 			//  assemble the digest string and the DATE header is available in the message
-			//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_OUTGOING_BODY))
-			if (assemble_passport(&glb_sdgst, msg, NULL, glb_sservercerturl, glb_ecprivkey))
+			if ((errCode = assemble_passport(&glb_sdgst, msg, 0, glb_sservercerturl, glb_ecprivkey))) {
+				LOG(L_ERR, "errCode val: %i\n", errCode);
+				LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+
+				//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_OUTGOING_BODY)) {
+				//if (assemble_passport(&glb_sdgst, msg, NULL, glb_sservercerturl, glb_ecprivkey))
+
+				LOG(L_ERR, "error setting up digest string\n");
 				return -5;
+			}
 			break;
 	}
 
@@ -867,8 +892,8 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	// Full form for extensions or if date doesn't exist in msg
 
 
-	if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
-		return -6;
+	//if (ec_sign(&glb_sdgst, &glb_b64encedmsg, glb_ecprivkey))
+	//	return -6;
 
 	// we assemble the value of the Identity header
 	// first part: Identity:[space]
@@ -877,12 +902,15 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	// fourth part: cert URL
 	// last part: >\r\n
 
+	LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+
+
 	sstr.s="Identity: ";
 	sstr.len=strlen("Identity: ");
 	if (cpy2dynstr(&glb_sidentity, &sstr))
 		return -7;
 
-	if (app2dynstr(&glb_sidentity, &getstr_dynstr(&glb_b64encedmsg)))
+	if (app2dynstr(&glb_sidentity, &getstr_dynstr(&glb_sdgst)))
 		return -8;
 
 	sstr.s=";info=<";

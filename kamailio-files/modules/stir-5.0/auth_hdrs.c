@@ -47,6 +47,9 @@ struct hdr_field glb_contact;
 char *glb_siphdr=NULL;
 char *glb_msgbody=NULL;
 
+static char* construct_pass_pay(struct sip_msg *msg, time_t t);
+static char* construct_pass_hdr(const struct sip_msg *msg, const char *x5u_URI);
+
 static int tohdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 static int in_contacthdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 static int out_contacthdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
@@ -539,34 +542,49 @@ static char* construct_pass_hdr(const struct sip_msg *msg, const char *x5u_URI) 
 	strcat(ret, "\"typ\":\"passport\",");
 	strcat(strcat(strcat(ret, "\"x5u\":\""), x5u_URI), "\"}");
 
-	LOG(L_ERR, "PASSporT hdr: %s\n", ret);
-
 	return ret;
 };
 
 
-static char* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
-	char *ret = malloc(256);
+static char* construct_pass_pay(struct sip_msg *msg, time_t msg_time) {
+
+	char *ret = (char*)malloc(256);
 	str sact, sactopt;
 	int iRes;
+	char *temp_to_add_ppt = (char*)malloc(256);
 
 	//check if FROM (ORIG) is URI or tn
 	//if contains @, URI ; otherwise tn
 
+	if (msg == NULL) {
+		LOG(L_ERR, "msg is empty\n");
+		return NULL;
+	}
+
 	strcpy(ret, "{\"dest\":{\"uri\":[\"");
 
 	if (fromhdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
+		LOG(L_ERR, "STIR: construct_pass_pay: error in getting from field\n");
 		return NULL;
 	}
-	strcat(strcat(ret, sact.s), "\"]},");
+
+	memcpy(temp_to_add_ppt, sact.s, sact.len);
+
+	strcat(strcat(ret, temp_to_add_ppt), "\"]},");
 	strcat(ret, "\"iat\":");
 
-	iRes = tohdr_proc(&sact, &sactopt, msg);
+
+	iRes = datehdr_proc(&sact, &sactopt, msg);
 	if (iRes == AUTH_OK) {
+		LOG(L_ERR, "okay..\n");
+		LOG(L_ERR, "printing date: %s\n", sact.s);
+		sact.s[sact.len] = 0;
 		strcat(ret, sact.s); //time of call
 	}
 	else if (iRes == AUTH_NOTFOUND) {
-		strcat(ret, sdate->s); //no date: current time
+		char str_date[11];
+		sprintf(str_date, "%i", (int)msg_time);
+		strcat(ret, str_date); //no date: current time
 	}
 	else {
 		LOG(L_ERR, "STIR: construct_pass_pay: date not found!\n");
@@ -574,16 +592,19 @@ static char* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
 		return NULL;
 	}
 
+
 	strcat(ret, ",\"orig\":{\"uri\":[\"");
 
 	if (tohdr_proc(&sact, &sactopt, msg) != AUTH_OK) {
+		LOG(L_ERR, "STIR: construct_pass_pay: error in getting to field\n");
 		return NULL;
 	}
-	strcat(strcat(ret, sact.s), "\"]}}");
+
+	memcpy(temp_to_add_ppt, sact.s, sact.len);
+
+	strcat(strcat(ret, temp_to_add_ppt), "\"]}}");
 
 	//can potentially replace dest with gdrp for group calls
-
-	LOG(L_ERR, "PASSporT pay: %s\n", ret);
 
 	return ret;
 
@@ -592,10 +613,14 @@ static char* construct_pass_pay(struct sip_msg *msg, const str *sdate) {
 
 //rfc 7515 part 5.1
 // Output: sout has string to hash + sign
-int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI, EC_KEY *eckey) {
+int assemble_passport(dynstr *sout, struct sip_msg *msg, time_t tdate, char *x5u_URI, EC_KEY *eckey) {
 
 	char *hdr = construct_pass_hdr(msg, x5u_URI);
-	char *pay = construct_pass_pay(msg, sdate);
+	char *pay = construct_pass_pay(msg, tdate);
+
+	LOG(L_ERR, "val of hdr: %s\n", hdr);
+	LOG(L_ERR, "val of pay: %s\n", pay);
+
 	
 	char* outstr_pay = (char*)malloc(256);
 	int outlen_pay = 0;
@@ -607,58 +632,45 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 	base64encode(hdr, strlen(hdr), outstr_hdr, &outlen_hdr);
 
 	//create [hdr . pay]
-	char* str_to_hash = (char*)malloc(outlen_hdr+outlen_pay+2);
-	strcat(strcat(strcpy(str_to_hash, outstr_hdr), "."), outstr_pay);
+	char* str_to_sign = (char*)malloc(outlen_hdr+outlen_pay+1);
+	strcat(strcat(strcpy(str_to_sign, outstr_hdr), "."), outstr_pay);
 
-	//str_to_sign = digest = hash ( [hdr . pay] )
-	char* str_to_sign = (char*)malloc(33);
-	SHA256(str_to_hash, strlen(str_to_hash), str_to_sign
+	//hash [hdr . pay]
+	char* hashed_str = (char*)malloc(32);
+	SHA256((unsigned char*)str_to_sign, strlen(str_to_sign), (unsigned char*)hashed_str);
 
-	if (!str_to_sign) {
-		LOG(L_ERR, "STIR: assemble_passport: error -1\n");
-		return -1;
-	}
-
-	//sign ( digest )
+	//sign [hdr . pay]
 	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
-	sig = ECDSA_do_sign(str_to_sign, 32, eckey); //strlen should = 32B
-	if (!sig) {
-		LOG(L_ERR, "STIR: assemble_passport: error -2\n");
-		return -2;
-	}
-
-
+	sig = ECDSA_do_sign((unsigned char*)hashed_str, 32, eckey);
+	
 	//extract r and s as octects
-	uint8_t* to_r = (uint8_t*)malloc(32);
-	uint8_t* to_s = (uint8_t*)malloc(32);
+	char* to_r = (char*)malloc(32);
+	char* to_s = (char*)malloc(32);
+	BN_bn2bin(sig->r, (uint8_t*)to_r);
+	BN_bn2bin(sig->s, (uint8_t*)to_s);
 
-	BN_bn2bin(sig->r, to_r);
-	BN_bn2bin(sig->s, to_s);
-
-	// r_cat_s = r || s
-	uint8_t* r_cat_s = (uint8_t*)malloc(64); //r and s are 32 bytes each
-	memcpy(r_cat_s, to_r, 32);
-	memcpy(r_cat_s + 32, to_s, 32);	
-	int r_cat_s_len = 64;
+	// r_and_s = r || s
+	char* r_and_s = (char*)malloc(64);
+	strcat(strcpy(r_and_s, to_r), to_s);
+	int r_and_s_len = strlen(r_and_s);
 
 	//base64(jws)
-	char* outstr_jws = (char*)malloc(128);
+	char* outstr_jws = (char*)malloc(256);
 	int outlen_jws = 0;
 
-	base64encode(r_cat_s, r_cat_s_len, outstr_jws, &outlen_jws);
+	base64encode(r_and_s, r_and_s_len, outstr_jws, &outlen_jws);
 
-	//now that we have hdr, pay, and JWS...
-	//prepare sout for return value
+	//prepare sout for return
 	resetstr_dynstr(sout);
 
-	if (sdate == NULL) {
+	if (tdate == 0) {
 		//date exists: just return outstr_jws
 		str add;
 		add.s = outstr_jws;
 		add.len = outlen_jws;
 		if (app2dynstr(sout,&add)) {
-			LOG(L_ERR, "STIR: assemble_passport: error -3\n");
-			return -3;
+			LOG(L_ERR, "STIR: assemble_passport: error -1\n");
+			return -1;
 		}
 	}
 
@@ -668,6 +680,16 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 		add.s = outstr_hdr;
 		add.len = outlen_hdr;
 		if (app2dynstr(sout,&add)) {
+			LOG(L_ERR, "STIR: assemble_passport: error -2\n");
+			return -2;
+		}
+		if (app2dynchr(sout,'.')) {
+			LOG(L_ERR, "STIR: assemble_passport: error -3\n");
+			return -3;
+		}
+		add.s = outstr_pay;
+		add.len = outlen_pay;
+		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -4\n");
 			return -4;
 		}
@@ -675,23 +697,14 @@ int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_U
 			LOG(L_ERR, "STIR: assemble_passport: error -5\n");
 			return -5;
 		}
-		add.s = outstr_pay;
-		add.len = outlen_pay;
+		add.s = outstr_jws;
+		add.len = outlen_jws;
 		if (app2dynstr(sout,&add)) {
 			LOG(L_ERR, "STIR: assemble_passport: error -6\n");
 			return -6;
 		}
-		if (app2dynchr(sout,'.')) {
-			LOG(L_ERR, "STIR: assemble_passport: error -7\n");
-			return -7;
-		}
-		add.s = outstr_jws;
-		add.len = outlen_jws;
-		if (app2dynstr(sout,&add)) {
-			LOG(L_ERR, "STIR: assemble_passport: error -8\n");
-			return -8;
-		}
 	}
+
 
 	return 0;	
 }

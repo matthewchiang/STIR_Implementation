@@ -246,7 +246,7 @@ int x509_get_notbefore(time_t *tout, X509 *pcert);
 
 /* Common functions */
 int digeststr_asm(dynstr *sout, struct sip_msg *msg, str *sdate, int iflags);
-int assemble_passport(dynstr *sout, struct sip_msg *msg, str *sdate, char *x5u_URI, EC_KEY *eckey);
+int assemble_passport(dynstr *sout, struct sip_msg *msg, time_t t, char *x5u_URI, EC_KEY *eckey);
 
 int fromhdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
 int cseqhdr_proc(str *sout, str *soutopt, struct sip_msg *msg);
