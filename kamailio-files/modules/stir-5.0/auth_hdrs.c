@@ -173,16 +173,17 @@ int cseqhdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 int datehdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 {
 	if ((!msg->date) && (parse_headers(msg, HDR_DATE_F, 0) == -1)) {
-		LOG(L_ERR, "AUTH_IDENTITY:datehdr_proc: Error while parsing DATE header\n");
+		LOG(L_ERR, "STIR module:datehdr_proc: Error while parsing DATE header\n");
 		return AUTH_ERROR;
 	}
 	if (!msg->date) {
-		LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY:datehdr_proc: DATE header field is not found\n");
+		LOG(L_ERR, "STIR module:datehdr_proc: DATE header field is not found\n");
+		LOG(L_ERR, "here is msg date: %s \n", msg->date);
 		return AUTH_NOTFOUND;
 	}
 	/* we must call parse_date_header explicitly */
 	if ((!(msg->date)->parsed) && (parse_date_header(msg) < 0)) {
-		LOG(L_ERR, "AUTH_IDENTITY:datehdr_proc: Error while parsing DATE body\n");
+		LOG(L_ERR, "STIR module:datehdr_proc: Error while parsing DATE body\n");
 		return AUTH_ERROR;
 	}
 

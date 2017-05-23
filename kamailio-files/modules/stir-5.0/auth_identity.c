@@ -69,7 +69,7 @@ static void mod_deinit(void);
 static int get_certificate(struct sip_msg* msg, char* srt1, char* str2);
 static int check_validity(struct sip_msg* msg, char* srt1, char* str2);
 static int check_date(struct sip_msg* msg, char* srt1, char* str2);
-static int check_callid(struct sip_msg* msg, char* srt1, char* str2);
+//static int check_callid(struct sip_msg* msg, char* srt1, char* str2);
 static int check_certificate(struct sip_msg* msg, char* srt1, char* str2);
 static int date_proc(struct sip_msg* msg, char* srt1, char* str2);
 static int add_identity(struct sip_msg* msg, char* srt1, char* str2);
@@ -129,7 +129,7 @@ static cmd_export_t glb_cmds[] = {
 	{"vrfy_check_msgvalidity_stir", check_validity, 0, 0, REQUEST_ROUTE},
 	{"vrfy_check_certificate_stir", check_certificate, 0, 0, REQUEST_ROUTE},
 	{"vrfy_check_date_stir", check_date, 0, 0, REQUEST_ROUTE},
-	{"vrfy_check_callid_stir", check_callid, 0, 0, REQUEST_ROUTE},
+//	{"vrfy_check_callid_stir", check_callid, 0, 0, REQUEST_ROUTE},
 	{0, 0, 0, 0, 0}
 };
 
@@ -472,7 +472,7 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 	}
 
 	if (tnow > tmsg + glb_iauthval) {
-		LOG(L_ERR, "STIR module:check_date(verifier): Outdated date header value (>%ld difference)\n", glb_iauthval);
+		LOG(L_ERR, "STIR module:check_date(verifier): Outdated date header value (>%i difference)\n", glb_iauthval);
 		LOG(L_ERR, "STIR module:check_date(verifier): tmsg: %ld\n", tmsg);
 		LOG(L_ERR, "STIR module:check_date(verifier): tnow: %ld\n", tnow);
 		return -4;
@@ -897,7 +897,8 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	// fourth part: cert URL
 	// last part: >\r\n
 
-	LOG(L_ERR, "STIR module:add_identity: ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+	//debug: print "base64 msg" = "second part"
+	//LOG(L_ERR, "STIR module:add_identity: ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
 
 
 	sstr.s="Identity: ";
