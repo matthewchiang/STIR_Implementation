@@ -181,15 +181,15 @@ static int mod_init(void)
 	 *
 	 */
 	if (glb_sprivkeypath[0]==0) {
-		LOG(L_WARN, "STIR:mod_init: Private key path is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: Private key path is missing! Authorization service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 	if (!glb_authservice_disabled && glb_sservercerturl[0]==0) {
-		LOG(L_WARN, "STIR:mod_init: URL of certificate of the server is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: URL of certificate of the server is missing! Authorization service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 	if (!glb_authservice_disabled && glb_sservercertpath[0]==0) {
-		LOG(L_WARN, "STIR:mod_init: Path of certificate of the server is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: Path of certificate of the server is missing! Authorization service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 
@@ -200,42 +200,42 @@ static int mod_init(void)
 	 */
 	curl_global_init(CURL_GLOBAL_ALL);
 	if ((glb_hcurl=curl_easy_init())==NULL) {
-		LOG(L_ERR, "STIR:mod_init: Unable to init cURL library!\n");
+		LOG(L_ERR, "STIR module:mod_init: Unable to init cURL library!\n");
 		return -1;
 	}
 	/* send all data to this function  */
 	if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_WRITEFUNCTION, curlmem_cb))!=0) {
 		LOG(L_ERR,
-			"STIR:mod_init: Unable to set cURL write function option: %s\n",
+			"STIR module:mod_init: Unable to set cURL write function option: %s\n",
 			curl_easy_strerror(iRet));
 		return -2;
 	}
 	/* we pass our 'glb_tcert' struct to the callback function */
 	if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_WRITEDATA, (void *)&glb_tcert.scertpem))!=0) {
 		LOG(L_ERR,
-			"STIR:mod_init: Unable to set cURL writedata option: %s\n",
+			"STIR module:mod_init: Unable to set cURL writedata option: %s\n",
 			curl_easy_strerror(iRet));
 		return -4;
 	}
 	if (!(glb_tcert.scertpem.s=pkg_malloc(CERTIFICATE_LENGTH))) {
-		LOG(L_ERR, "STIR:mod_init: Not enough memory error\n");
+		LOG(L_ERR, "STIR module:mod_init: Not enough memory error\n");
 		return -3;
 	}
   	/* some servers don't like requests that are made without a user-agent
 	   field, so we provide one */
 	if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_USERAGENT, "ser-agent/1.0"))!=0) {
 		LOG(L_WARN,
-			"AUTH_IDENTITY:mod_init: Unable to set cURL useragent option: %s\n",
+			"STIR module:mod_init: Unable to set cURL useragent option: %s\n",
 			curl_easy_strerror(iRet));
 	}
 	if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_SSL_VERIFYPEER, 1))!=0) {
 		LOG(L_WARN,
-			"AUTH_IDENTITY:mod_init: Unable to set cURL verifypeer option: %s\n",
+			"STIR module:mod_init: Unable to set cURL verifypeer option: %s\n",
 			curl_easy_strerror(iRet));
 	}
 	if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_SSL_VERIFYHOST, 2))!=0) {
 		LOG(L_WARN,
-			"AUTH_IDENTITY:mod_init: Unable to set cURL verifyhost option: %s\n",
+			"STIR module:mod_init: Unable to set cURL verifyhost option: %s\n",
 			curl_easy_strerror(iRet));
 	}
 
@@ -243,7 +243,7 @@ static int mod_init(void)
 	if (glb_scainfo[0]) {
 		if ((iRet=curl_easy_setopt(glb_hcurl, CURLOPT_CAINFO, glb_scainfo))!=0) {
 			LOG(L_WARN,
-				"AUTH_IDENTITY:mod_init: Unable to set cURL cainfo option: %s\n",
+				"STIR module:mod_init: Unable to set cURL cainfo option: %s\n",
 				curl_easy_strerror(iRet));
 		}
 	}
@@ -256,16 +256,16 @@ static int mod_init(void)
 	 */
 	OpenSSL_add_all_algorithms();
 	if (!(glb_cacerts=X509_STORE_new())) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to initialize X509 store\n");
+		LOG(L_ERR, "STIR module:mod_init: unable to initialize X509 store\n");
 		return -16;
 	}
 	if (X509_STORE_set_default_paths(glb_cacerts)!=1) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to set X509 store default path\n");
+		LOG(L_ERR, "STIR module:mod_init: unable to set X509 store default path\n");
 		return -17;
 	}
 	if (glb_scainfo[0]
 		   && X509_STORE_load_locations(glb_cacerts, glb_scainfo, NULL) != 1)
-		LOG(L_WARN, "AUTH_IDENTITY:mod_init: unable to load X509 store location\n");
+		LOG(L_WARN, "STIR module:mod_init: unable to load X509 store location\n");
 
 
 	/*
@@ -312,7 +312,7 @@ static int mod_init(void)
 	glb_ttimeparams.ibnum=CALLID_TABLE_ENTRIES/glb_ttimeparams.ibcir;
 
 	if (register_timer(callid_gc, (void*)&glb_ttimeparams /* param*/, CALLID_GARBAGE_COLLECTOR_INTERVAL  /* period */) < 0 ) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: Can not register timer\n");
+		LOG(L_ERR, "STIR module:mod_init: Can not register timer\n");
 		return -5;
 	}
 
@@ -340,34 +340,34 @@ static int mod_init(void)
   	 * Get my certificate
 	 */
 	if (!(hpemfile=fopen(glb_sservercertpath, "r"))) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to open certificate '%s'\n", strerror(errno));
+		LOG(L_ERR, "STIR module:mod_init: unable to open certificate '%s'\n", strerror(errno));
 		return -12;
 	}
 	if (!(pmycert=PEM_read_X509(hpemfile, NULL, NULL, NULL))) {
 		ERR_error_string_n(ERR_get_error(), serr, sizeof serr);
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: '%s'\n", serr);
+		LOG(L_ERR, "STIR module:mod_init: '%s'\n", serr);
 		fclose(hpemfile);
 		return -13;
 	}
 	if (x509_get_notafter(&glb_imycertnotafter, pmycert)) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: Error getting certificate expiration date\n");
+		LOG(L_ERR, "STIR module:mod_init: Error getting certificate expiration date\n");
 		return -13;
 	}
 	if (x509_get_notbefore(&ttmp, pmycert)) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: Error getting certificate validity date\n");
+		LOG(L_ERR, "STIR module:mod_init: Error getting certificate validity date\n");
 		return -13;
 	}
 	if ((tnow=time(0)) < 0) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: time error %s\n", strerror(errno));
+		LOG(L_ERR, "STIR module:mod_init: time error %s\n", strerror(errno));
 		return -13;
 	}
 	if (tnow < ttmp || tnow > glb_imycertnotafter) {
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: Date of certificate is invalid (%s)\n", glb_sservercertpath);
+		LOG(L_ERR, "STIR module:mod_init: Date of certificate is invalid (%s)\n", glb_sservercertpath);
 		return -14;
 	}
 
 	if (fclose(hpemfile))
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to close file\n");
+		LOG(L_ERR, "STIR module:mod_init: unable to close file\n");
 	X509_free(pmycert);
 
 	/*
@@ -379,7 +379,7 @@ static int mod_init(void)
 	hpemfile=fopen(glb_sprivkeypath, "r");
 	if (!hpemfile)
 	{
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to open private key '%s'\n", strerror(errno));
+		LOG(L_ERR, "STIR module:mod_init: unable to open private key '%s'\n", strerror(errno));
 		return -12;
 	}
 
@@ -387,14 +387,14 @@ static int mod_init(void)
 	glb_ecprivkey = PEM_read_ECPrivateKey(hpemfile, NULL, NULL, NULL);
 	if (!glb_ecprivkey) {
 		ERR_error_string_n(ERR_get_error(), serr, sizeof serr);
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: '%s'\n", serr);
+		LOG(L_ERR, "STIR module:mod_init: '%s'\n", serr);
 		fclose(hpemfile);
 		return -13;
 	}
 
 	//close file
 	if (fclose(hpemfile))
-		LOG(L_ERR, "AUTH_IDENTITY:mod_init: unable to close file\n");
+		LOG(L_ERR, "STIR module:mod_init: unable to close file\n");
 
 
 
@@ -420,6 +420,10 @@ static void mod_deinit(void)
 } //end mod_deinit()
 
 
+
+
+
+
 /*
  *
  *	VERIFIER FUNCTIONS
@@ -431,12 +435,9 @@ static void mod_deinit(void)
 // 2.) get_certificate()
 // 3.) check_certificate()
 // 4.) check_msg_validity()
-// 5.) check_callid()
 
 
-/*
- * The Date header must indicate a time within 60 seconds of the receipt of a message
- */
+// The Date header must indicate a time within 60 seconds of the receipt of a message
 static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 {
 	time_t tnow, tmsg;
@@ -444,29 +445,40 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 
 	//check that date header exists
 	ires=datehdr_proc(NULL, NULL, msg);
-	if (ires)
+	if (ires) {//either error or not found
+		if (ires == AUTH_NOTFOUND) {
+			LOG(L_ERR, "STIR module:check_date(verifier): date not found\n");
+		}
+		else {
+			LOG(L_ERR, "STIR module:check_date(verifier): error with date\n");
+		}
 		return -1;
+	}
 
+	//date exists: check if within time limit (default 60 sec)
 #ifdef HAVE_TIMEGM
 	tmsg=timegm(&get_date(msg)->date);
 #else
 	tmsg=_timegm(&get_date(msg)->date);
 #endif
 	if (tmsg < 0) {
-		LOG(L_ERR, "AUTH_IDENTITY:check_date: timegm error\n");
+		LOG(L_ERR, "STIR module:check_date(verifier): timegm error for tmsg\n");
 		return -2;
 	}
 
 	if ((tnow=time(0)) < 0) {
-		LOG(L_ERR, "AUTH_IDENTITY:check_date: time error %s\n", strerror(errno));
+		LOG(L_ERR, "STIR module:check_date(verifier): error getting time now %s\n", strerror(errno));
 		return -3;
 	}
 
 	if (tnow > tmsg + glb_iauthval) {
-		LOG(L_INFO, "AUTH_IDENTITY VERIFIER: Outdated date header value (%ld sec)\n", tnow - tmsg + glb_iauthval);
+		LOG(L_ERR, "STIR module:check_date(verifier): Outdated date header value (>%ld difference)\n", glb_iauthval);
+		LOG(L_ERR, "STIR module:check_date(verifier): tmsg: %ld\n", tmsg);
+		LOG(L_ERR, "STIR module:check_date(verifier): tnow: %ld\n", tnow);
 		return -4;
-	} else
-		LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY VERIFIER: Date header value OK\n");
+	} 
+	
+	LOG(L_ERR, "STIR module:check_date(verifier): Date header value OK\n");
 
 	return 1;
 }
@@ -493,8 +505,10 @@ static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 	}
 */
 
+	//extract URL from Identity header
 	if (getURLFromIdentity(&glb_tcert.surl, msg)) {
-		return -3;
+		LOG(L_ERR, "STIR module:get_certificate: can't get URL from identity header\n");
+		return -1;
 	}
 
 	// this case ivalidbefore==0 shows that this certificate was downloaded
@@ -505,15 +519,20 @@ static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 		// we did not found it in the table, so we've to download it
 		// we reset the PEM buffer
 		glb_tcert.scertpem.len=0;
-		if (download_cer(&glb_tcert.surl, glb_hcurl))
-			return -6;
+		if (download_cer(&glb_tcert.surl, glb_hcurl)) {
+			LOG(L_ERR, "STIR module:get_certificate: failure downloading certificate\n");
+			return -2;
+		}
 		glb_certisdownloaded=1;
 	} else
 		glb_certisdownloaded=0;
 
-	if (retrieve_x509(&glb_pcertx509, &glb_tcert.scertpem, glb_acceptpem))
-		return -7;
+	if (retrieve_x509(&glb_pcertx509, &glb_tcert.scertpem, glb_acceptpem)) {
+		LOG(L_ERR, "STIR module:get_certificate: failure retrieving certificate\n");
+		return -3;
+	}
 
+	LOG(L_ERR, "STIR module:get_certificate: cert checks out\n");
 
 	return 1;
 }
@@ -524,33 +543,49 @@ int check_certificate(struct sip_msg* msg, char* srt1, char* str2) {
 	str suri;
 
 	if (!glb_pcertx509) {
-		LOG(L_ERR, "AUTH_IDENTITY:check_certificate: Certificate uninitialized! (has vrfy_get_certificate been called?)\n");
+		LOG(L_ERR, "STIR module:check_certificate: Certificate uninitialized! (has vrfy_get_certificate been called?)\n");
 		return -1;
 	}
-	/* this certificate was downloaded so we've to verify and add it to table */
-	if (glb_certisdownloaded) {
-		if (fromhdr_proc(&suri, NULL, msg))
-			return -1;
 
-		if (parse_uri(suri.s, suri.len, &tfrom_uri)) {
-			LOG(L_ERR, "AUTH_IDENTITY:get_certificate: Error while parsing FROM URI\n");
+	// this certificate was downloaded so we've to verify and add it to table
+	if (glb_certisdownloaded) {
+		if (fromhdr_proc(&suri, NULL, msg)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error extracting From header\n");
 			return -2;
 		}
 
-		if (verify_x509(glb_pcertx509, glb_cacerts))
+		if (parse_uri(suri.s, suri.len, &tfrom_uri)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error while parsing From URI\n");
 			return -3;
+		}
 
-		if (check_x509_subj(glb_pcertx509, &tfrom_uri.host))
+		if (verify_x509(glb_pcertx509, glb_cacerts)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error verifying downloaded certificate\n");
 			return -4;
+		}
+
+		if (check_x509_subj(glb_pcertx509, &tfrom_uri.host)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error checking cert subject\n");
+			return -5;
+		}
 
 		/* we retrieve expiration date from the certificate (it needs for
 		   certificate table garbage collector) */
-		if (x509_get_notafter(&glb_tcert.ivalidbefore, glb_pcertx509))
-			return -5;
-
-		if (addcert2table(glb_tcert_table, &glb_tcert))
+		if (x509_get_notafter(&glb_tcert.ivalidbefore, glb_pcertx509)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error with cert expiration date\n");
 			return -6;
+		}
+
+		if (addcert2table(glb_tcert_table, &glb_tcert)) {
+			LOG(L_ERR, "STIR module:check_certificate: Error adding new cert to table\n");
+			return -7;
+		}
 	}
+
+	//if already in table, don't need to check
+
+	LOG(L_ERR, "STIR module:check_certificate: Cert checks out\n");
+
 	return 1;
 }
 
@@ -674,45 +709,6 @@ static int check_validity(struct sip_msg* msg, char* srt1, char* str2)
 
 
 
-static int check_callid(struct sip_msg* msg, char* srt1, char* str2)
-{
-	str scid, sftag, scseqnum;
-	unsigned int ucseq;
-	int ires;
-	time_t ivalidbefore;
-
-
-	if (callidhdr_proc(&scid, NULL, msg))
-		return -1;
-
-	if (cseqhdr_proc(&scseqnum, NULL, msg))
-		return -2;
-	if (str2int(&scseqnum, &ucseq))
-		return -3;
-
-	if (fromhdr_proc(NULL, &sftag, msg))
-		return -4;
-
-	if ((ivalidbefore=time(0)) < 0) {
-		LOG(L_ERR, "AUTH_IDENTITY:check_callid: time error %s\n", strerror(errno));
-		return -5;
-	}
-
-	ires=proc_cid(glb_tcallid_table,
-				  &scid,
-				  &sftag,
-				  ucseq,
-				  ivalidbefore + glb_iauthval);
-	if (ires) {
-		if (ires==AUTH_FOUND)
-			LOG(L_INFO, "AUTH_IDENTITY VERIFIER: Call is replayed!\n");
-		return -6;
-	}
-
-	return 1;
-}
-
-
 void callid_gc(unsigned int tick, void *param)
 {
 	/* check the last slice */
@@ -755,7 +751,7 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 	time_t tmsg, tnow;
 
 	if (glb_authservice_disabled) {
-		LOG(L_WARN, "STIR:date_proc: Authentication Service is disabled\n");
+		LOG(L_WARN, "STIR module:date_proc: Authentication Service is disabled\n");
 		return -1;
 	}
 
@@ -783,18 +779,18 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 #endif
 			//tmsg, tnow = seconds since Epoch
 			if (tmsg < 0) {
-				LOG(L_ERR, "STIR:date_proc: timegm error\n");
+				LOG(L_ERR, "STIR module:date_proc: timegm error\n");
 				return -4;
 			}
 			if ((tnow=time(0))<0) {
-				LOG(L_ERR, "STIR:date_proc: time error\n");
+				LOG(L_ERR, "STIR module:date_proc: time error\n");
 				return -5;
 			}
 
 			// If sipmsg time differs from current time by more than [glb_imsgtime], reject message
 			// glb_imsgtime is parameter from .cfg w/ default of 60 seconds
 			if (tmsg + glb_imsgtime < tnow || tnow + glb_imsgtime < tmsg) {
-				LOG(L_INFO, "STIR:date_proc: Date header overdue\n");
+				LOG(L_INFO, "STIR module:date_proc: Date header overdue\n");
 				return -6;
 			}
 
@@ -810,7 +806,7 @@ static int date_proc(struct sip_msg* msg, char* srt1, char* str2)
 	 * RFC 4474 [6] Step 3
 	 */
 	if (glb_imycertnotafter < tmsg) {
-		LOG(L_INFO, "STIR:date_proc: My certificate has been expired\n");
+		LOG(L_INFO, "STIR module:date_proc: My certificate has been expired\n");
 		return -8;
 	}
 
@@ -829,7 +825,7 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	str sstr; // for appending values to identity header
 
 	if (glb_authservice_disabled) {
-		LOG(L_WARN, "STIR:add_identity: Authentication Service is disabled\n");
+		LOG(L_WARN, "STIR module:add_identity: Authentication Service is disabled\n");
 		return -1;
 	}
 
@@ -847,22 +843,21 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 				 * that function initializes the Date if that not exists
 				 * in the SIP message
 				 */
-				LOG(L_ERR, "STIR:add_identity: Date header is not found (has auth_date_proc been called?)\n");
+				LOG(L_ERR, "STIR module:add_identity: Date header is not found (has auth_date_proc been called?)\n");
 				return -3;
 			}
 
 
 
 			//  assemble the digest string and the DATE header is missing in the orignal message (add current date)
-
 			if ((errCode = assemble_passport(&glb_sdgst, msg, glb_tdate, glb_sservercerturl, glb_ecprivkey))) {
-				LOG(L_ERR, "errCode val: %i\n", errCode);
-				LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+				LOG(L_ERR, "STIR module:add_identity: errCode val: %i\n", errCode);
+				LOG(L_ERR, "STIR module:add_identity: ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
 
 				//if (digeststr_asm(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), AUTH_OUTGOING_BODY | AUTH_ADD_DATE)) {
 				//if (assemble_passport(&glb_sdgst, msg, &getstr_dynstr(&glb_sdate), glb_sservercerturl, glb_ecprivkey))
 
-				LOG(L_ERR, "error setting up digest string\n");
+				LOG(L_ERR, "STIR module:add_identity: error setting up digest string\n");
 				return -4;
 			}
 			break;
@@ -874,13 +869,13 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 
 			//  assemble the digest string and the DATE header is available in the message
 			if ((errCode = assemble_passport(&glb_sdgst, msg, 0, glb_sservercerturl, glb_ecprivkey))) {
-				LOG(L_ERR, "errCode val: %i\n", errCode);
-				LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+				LOG(L_ERR, "STIR module:add_identity: errCode val: %i\n", errCode);
+				LOG(L_ERR, "STIR module:add_identity: ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
 
 				//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_OUTGOING_BODY)) {
 				//if (assemble_passport(&glb_sdgst, msg, NULL, glb_sservercerturl, glb_ecprivkey))
 
-				LOG(L_ERR, "error setting up digest string\n");
+				LOG(L_ERR, "STIR module:add_identity: error setting up digest string\n");
 				return -5;
 			}
 			break;
@@ -902,7 +897,7 @@ static int add_identity(struct sip_msg* msg, char* srt1, char* str2)
 	// fourth part: cert URL
 	// last part: >\r\n
 
-	LOG(L_ERR, "ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
+	LOG(L_ERR, "STIR module:add_identity: ret from assemble passport: %s\n", getstr_dynstr(&glb_sdgst).s);
 
 
 	sstr.s="Identity: ";
