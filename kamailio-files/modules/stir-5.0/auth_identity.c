@@ -445,7 +445,7 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 
 	//check that date header exists
 	ires=datehdr_proc(NULL, NULL, msg);
-	if (ires) {//either error or not found
+	if (ires) { //either error or not found
 		if (ires == AUTH_NOTFOUND) {
 			LOG(L_ERR, "STIR module:check_date(verifier): date not found\n");
 		}
@@ -488,22 +488,7 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 {
 
-/*
-	//extract URL from msg
-	if (identityinfohdr_proc(&glb_tcert.surl, NULL, msg))
-		return -3;
 
-	// we support rsa-sha1 only (alg.len==0 then we use rsa-sha1)
-	//NOTE: changed to sha256 instead
-	if (get_identityinfo(msg)->alg.len
-		&& (get_identityinfo(msg)->alg.len != strlen("rsa-sha256")
-		    || strncasecmp("rsa-sha256",
-							get_identityinfo(msg)->alg.s,
-							get_identityinfo(msg)->alg.len ))) {
-		LOG(L_ERR, "AUTH_IDENTITY:get_certificate: Unsupported Identity-Info algorithm\n");
-		return -5;
-	}
-*/
 
 	//extract URL from Identity header
 	if (getURLFromIdentity(&glb_tcert.surl, msg)) {
@@ -516,7 +501,7 @@ static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 
 	// check whether this certificate is our certificate table
 	if (get_cert_from_table(glb_tcert_table, &glb_tcert.surl, &glb_tcert)) {
-		// we did not found it in the table, so we've to download it
+		// we did not found it in the table, so we have to download it
 		// we reset the PEM buffer
 		glb_tcert.scertpem.len=0;
 		if (download_cer(&glb_tcert.surl, glb_hcurl)) {
@@ -610,96 +595,45 @@ static int check_validity(struct sip_msg* msg, char* srt1, char* str2)
 
 
 	if (!glb_pcertx509) {
-		LOG(L_ERR, "AUTH_IDENTITY:check_validity: Certificate uninitialized! (has vrfy_get_certificate been called?)\n");
+		LOG(L_ERR, "STIR module: check_validity(verifier): Certificate uninitialized! (has vrfy_get_certificate been called?)\n");
 		return -1;
 	}
 
 	do {
-		/* get the value of identity header parsed */
+		// get the value of identity header parsed
 		if (identityhdr_proc(&sidentity, NULL, msg)) {
 			iRet=-1;
 			break;
 		}
 
-		/* the length of identity value should be 172 octets long */
-		/* ?????? no set length in 4474bis b/c variable URL length
-		if (sidentity.len > sizeof(sencedsha)) {
-			LOG(L_ERR, "AUTH_IDENTITY:check_validity: Unexpected Identity length (%d)\n", sidentity.len);
-			iRet=-2;
-			break;
-		}
-		*/
-
-		/* base64 decode the value of Identity header */
+		// base64 decode the value of Identity header
 		base64decode(sidentity.s, sidentity.len, sencedsha, &iencedshalen);
 
-		/* assemble the digest string to be able to compare it with decrypted one */
-		if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
-		//if (assemble_passport(&glb_sdgst, msg, NULL, glb_tcert.surl.s, glb_ecprivkey)) {
+		// assemble the digest string to be able to compare it with decrypted one
+		//if (digeststr_asm(&glb_sdgst, msg, NULL, AUTH_INCOMING_BODY)) {
+		if (assemble_passport(&glb_sdgst, msg, 0, glb_tcert.surl.s, glb_ecprivkey)) {
 			iRet=-5;
 			break;
 		}
+
 		// calculate hash
 		SHA256((unsigned char*)getstr_dynstr(&glb_sdgst).s,
 			  getstr_dynstr(&glb_sdgst).len,
 			  sstrcrypted);
 
 
-#ifdef NEW_RSA_PROC
-		/* decrypt with public key retrieved from the downloaded certificate
-		   and compare it with the calculated digest hash */
-/*
-		if (rsa_sha256_dec(sencedsha, iencedshalen,
-						 (char *)sstrcrypted, sizeof(sstrcrypted), &ishalen,
-						 glb_pcertx509)) {
-			iRet=-3;
-			break;
-		} else
-			LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY VERIFIER: Identity OK\n");
-*/
+		// decrypt with public key retrieved from the downloaded certificate
+		// and compare it with the calculated digest hash
 
 		if (ec_verify(sencedsha, iencedshalen,
 						 (char *)sstrcrypted, sizeof(sstrcrypted), &ishalen,
 						 glb_pcertx509)) {
 			iRet=-3;
 			break;
-		} else
-			LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY VERIFIER: Identity OK\n");
-
-
-#else
-		/* decrypt with public key retrieved from the downloaded certificate */
-/*
-		if (rsa_sha256_dec(sencedsha, iencedshalen,
-						 ssha, sizeof(ssha), &ishalen,
-						 glb_pcertx509)) {
-			iRet=-3;
-			break;
 		}
-*/
+		
+		LOG(AUTH_DBG_LEVEL, "STIR module: check_validity(verifier): Identity OK\n");
 
-		if (ec_verify(sencedsha, iencedshalen,
-						 ssha, sizeof(ssha), &ishalen,
-						 glb_pcertx509)) {
-			iRet=-3;
-			break;
-		}
-
-
-		/* check hash size */
-		if (ishalen != sizeof(sstrcrypted)) {
-			LOG(L_ERR, "AUTH_IDENTITY:check_validity: Unexpected decrypted hash length (%d != %d)\n", ishalen, SHA256_DIGEST_LENGTH);
-			iRet=-4;
-			break;
-		}
-		/* compare hashes */
-		if (memcmp(sstrcrypted, ssha, ishalen)) {
-			LOG(L_INFO, "AUTH_IDENTITY VERIFIER: comparing hashes failed -> Invalid Identity Header\n");
-			iRet=-6;
-			break;
-		} else
-			LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY VERIFIER: Identity OK\n");
-#endif
 	} while (0);
 
 	glb_pcertx509=NULL;

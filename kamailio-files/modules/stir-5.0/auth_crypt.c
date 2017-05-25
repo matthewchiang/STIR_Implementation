@@ -53,14 +53,14 @@ int retrieve_x509(X509 **pcert, str *scert, int bacceptpem)
 
 
 	if (!(bcer=BIO_new(BIO_s_mem()))) {
-		LOG(L_ERR, "AUTH_IDENTITY:retrieve_x509: Unable to create BIO\n");
+		LOG(L_ERR, "STIR module:retrieve_x509: Unable to create BIO\n");
 
 		return -1;
 	}
 
 	do {
 		if (BIO_write(bcer, scert->s, scert->len)!=scert->len) {
-			LOG(L_ERR, "AUTH_IDENTITY:retrieve_x509: Unable to write BIO\n");
+			LOG(L_ERR, "STIR module:retrieve_x509: Unable to write BIO\n");
 			iRet=-2;
 			break;
 		}
@@ -75,13 +75,13 @@ int retrieve_x509(X509 **pcert, str *scert, int bacceptpem)
 					  BEGIN_PEM_CERT_LEN)) {
 			if (!(*pcert = PEM_read_bio_X509(bcer, NULL, NULL, NULL))) {
 				ERR_error_string_n(ERR_get_error(), serr, sizeof(serr));
-				LOG(L_ERR, "AUTH_IDENTITY:retrieve_x509: PEM Certificate %s\n", serr);
+				LOG(L_ERR, "STIR module:retrieve_x509: PEM Certificate %s\n", serr);
 				iRet=-4;
 			}
 		} else {
 			if (!(*pcert = d2i_X509_bio(bcer, NULL))) {
 				ERR_error_string_n(ERR_get_error(), serr, sizeof(serr));
-				LOG(L_ERR, "AUTH_IDENTITY:retrieve_x509: DER Certificate %s\n", serr);
+				LOG(L_ERR, "STIR module:retrieve_x509: DER Certificate %s\n", serr);
 				iRet=-3;
 			}
 		}
@@ -136,7 +136,7 @@ int check_x509_subj(X509 *pcert, str* sdom)
 				}
 				if (sdom->len != altlen 
 					|| strncasecmp(altptr, sdom->s, sdom->len)) {
-					LOG(L_INFO, "AUTH_IDENTITY VERIFIER: subAltName of certificate doesn't match host name\n");
+					LOG(L_INFO, "STIR module: VERIFIER: subAltName of certificate doesn't match host name\n");
 					ret = -1;
 				} else {
 					ret = 1;
@@ -157,7 +157,7 @@ int check_x509_subj(X509 *pcert, str* sdom)
 									scname,
 									sizeof (scname));
 	if (sdom->len != ilen || strncasecmp(scname, sdom->s, sdom->len)) {
-		LOG(L_INFO, "AUTH_IDENTITY VERIFIER: common name of certificate doesn't match host name\n");
+		LOG(L_INFO, "STIR module: VERIFIER: common name of certificate doesn't match host name\n");
 		return -2;
 	}
 
@@ -176,14 +176,14 @@ int verify_x509(X509 *pcert, X509_STORE *pcacerts)
 	}
 
 	if (X509_STORE_CTX_init(ca_ctx, pcacerts, pcert, NULL) != 1) {
-		LOG(L_ERR, "AUTH_IDENTITY:verify_x509: Unable to init X509 store ctx\n");
+		LOG(L_ERR, "STIR module:verify_x509: Unable to init X509 store ctx\n");
 		X509_STORE_CTX_free(ca_ctx);
 		return -1;
 	}
 
 	if (X509_verify_cert(ca_ctx) != 1) {
 		strerr = (char *)X509_verify_cert_error_string(X509_STORE_CTX_get_error(ca_ctx));
-		LOG(L_ERR, "AUTH_IDENTITY VERIFIER: Certificate verification error: %s\n", strerr);
+		LOG(L_ERR, "STIR module: VERIFIER: Certificate verification error: %s\n", strerr);
 		X509_STORE_CTX_cleanup(ca_ctx);
 		X509_STORE_CTX_free(ca_ctx);
 		return -2;
@@ -191,125 +191,12 @@ int verify_x509(X509 *pcert, X509_STORE *pcacerts)
 	X509_STORE_CTX_cleanup(ca_ctx);
 	X509_STORE_CTX_free(ca_ctx);
 
-	LOG(AUTH_DBG_LEVEL, "AUTH_IDENTITY VERIFIER: Certificate is valid\n");
+	LOG(AUTH_DBG_LEVEL, "STIR module: VERIFIER: Certificate is valid\n");
 
 	return 0;
 }
 
 
-//************************************************************* RSA-SHA256 ******************************************************************/
-
-/*
-
-
-int rsa_sha256_enc (dynstr *sdigeststr,
-				  dynstr *senc,
-				  dynstr *sencb64,
-				  RSA *hmyprivkey)
-{
-
-	unsigned char sstrcrypted[32]; //sha digest length
-	int ires;
-	char serr[160];
-
-
-	SHA256((unsigned char*)getstr_dynstr(sdigeststr).s,
-		 getstr_dynstr(sdigeststr).len,
-		 sstrcrypted);
-
-#ifdef NEW_RSA_PROC
-	ires = senc->size;
-	if (RSA_sign(NID_sha256,
-			 	 sstrcrypted,
-			 	 sizeof sstrcrypted,
-				 (unsigned char*)getstr_dynstr(senc).s,
-				 (unsigned int*)&ires,
-			 	 hmyprivkey) != 1) {
-		ERR_error_string_n(ERR_get_error(), serr, sizeof serr);
-		LOG(L_ERR, "AUTH_IDENTITY:rsa_sha256_enc: '%s'\n", serr);
-		return -2;
-	}
-#else
-	ires=RSA_private_encrypt(sizeof sstrcrypted, sstrcrypted,
-							 (unsigned char*)getstr_dynstr(senc).s, hmyprivkey,
-							 RSA_PKCS1_PADDING );
-	if (ires<0)
-	{
-		ERR_error_string_n(ERR_get_error(), serr, sizeof serr);
-		LOG(L_ERR, "AUTH_IDENTITY:rsa_sha256_enc: '%s'\n", serr);
-		return -1;
-	}
-#endif
-
-	base64encode(getstr_dynstr(senc).s, senc->size, getstr_dynstr(sencb64).s, &getstr_dynstr(sencb64).len );
-
-	return 0;
-}
-
-int rsa_sha256_dec (char *sencedsha, int iencedshalen,
-				  char *ssha, int sshasize, int *ishalen,
-				  X509 *pcertx509)
-{
-	EVP_PKEY *pkey;
-	RSA* hpubkey;
-	unsigned long lerr;
-	char serr[160];
-
-
-	pkey=X509_get_pubkey(pcertx509);
-	if (pkey == NULL) {
-		lerr=ERR_get_error(); ERR_error_string_n(lerr, serr, sizeof(serr));
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Pubkey %s\n", serr);
-		return -1;
-	}
-
-	X509_free(pcertx509);
-
-	hpubkey = EVP_PKEY_get1_RSA(pkey);
-	EVP_PKEY_free(pkey);
-	if (hpubkey == NULL) {
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Error getting RSA key\n");
-		return -2;
-	}
-
-#ifdef NEW_RSA_PROC
-	if (RSA_verify(NID_sha256,
-		 			(unsigned char*)ssha, sshasize,
-					(unsigned char*)sencedsha, iencedshalen,
-					hpubkey) != 1) {
-		LOG(L_INFO, "AUTH_IDENTITY VERIFIER: RSA verify returned: '%s'\n", ERR_error_string(ERR_get_error(), NULL));
-		LOG(L_INFO, "AUTH_IDENTITY VERIFIER: RSA verify failed -> Invalid Identity Header\n");
-		RSA_free(hpubkey);
-		return -5;
-	}
-#else
-	// it is bigger than the output buffer
-	if (RSA_size(hpubkey) > sshasize) {
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Unexpected Identity hash length (%d > %d)\n", RSA_size(hpubkey), sshasize);
-		RSA_free(hpubkey);
-		return -3;
-	}
-	*ishalen=RSA_public_decrypt(iencedshalen,
-								(unsigned char*)sencedsha,
-								(unsigned char*)ssha,
-								hpubkey,
-								RSA_PKCS1_PADDING);
-	if (*ishalen<=0) {
-		lerr=ERR_get_error(); ERR_error_string_n(lerr, serr, sizeof(serr));
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: RSA operation error %s\n", serr);
-		RSA_free(hpubkey);
-		return -4;
-	}
-#endif
-
-	RSA_free(hpubkey);
-
-	return 0;
-}
-
-*/
-
-//************************************************************** END RSA-SHA256 ********************************************************************/
 
 //************************************************************** START EC **********************************************************************/
 
@@ -319,27 +206,38 @@ int rsa_sha256_dec (char *sencedsha, int iencedshalen,
 //output: sencb64 = base64(sign(hash(inputstr)))
 int ec_sign(dynstr *inputstr, dynstr *sencb64, EC_KEY *ec_privkey) {
 
-    //hash message
-
-    uint8_t dgst[SHA256_DIGEST_LENGTH];
+    //hash message, store as dgst
+    char* dgst = (char*)malloc(SHA256_DIGEST_LENGTH + 1);
     SHA256((unsigned char*)getstr_dynstr(inputstr).s, getstr_dynstr(inputstr).len, dgst);
 
-    //signing
+    //sign dgst
+	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
+    sig = ECDSA_do_sign((unsigned char*)dgst, strlen(digest), ec_privkey);
 
-    ECDSA_SIG *sig;
-    size_t sig_len;
-    uint8_t *sigDerBuff, *buff_copy;
+    char* to_r = (char*)malloc(32);
+	char* to_s = (char*)malloc(32);
+	BN_bn2bin(sig->r, (uint8_t*)to_r);
+	BN_bn2bin(sig->s, (uint8_t*)to_s);
 
-    sig = ECDSA_do_sign(dgst, sizeof(dgst), ec_privkey);
+	char* r_and_s = (char*)malloc(64);
+	strcat(strcpy(r_and_s, to_r), to_s);
+	int r_and_s_len = strlen(r_and_s);
 
-    sig_len = ECDSA_size(ec_privkey); //= 72B
-    sigDerBuff = calloc(sig_len, sizeof(uint8_t));
-    buff_copy = sigDerBuff;
-    i2d_ECDSA_SIG(sig, &buff_copy);
+	//base64 signature
+	char* outstr_jws = (char*)malloc(256);
+	int outlen_jws = 0;
 
-    //answer in sigDerBuff
+	base64encode(r_and_s, r_and_s_len, outstr_jws, &outlen_jws);
 
-    base64encode((char*)sigDerBuff, sig_len, getstr_dynstr(sencb64).s, &getstr_dynstr(sencb64).len );
+	//add b64(sign) to sencb64 to return
+	resetstr_dynstr(sencb64);
+	str add;
+	add.s = outstr_jws;
+	add.len = outlen_jws;
+	if (app2dynstr(sencb64,&add)) {
+		LOG(L_ERR, "STIR: ec_sign: error -1\n");
+		return -1;
+	}
 
     return 0;
 
@@ -360,7 +258,7 @@ int ec_verify(char *sencedsha, int iencedshalen, char *ssha, int sshasize, int *
 	pkey=X509_get_pubkey(pcertx509);
 	if (pkey == NULL) {
 		lerr=ERR_get_error(); ERR_error_string_n(lerr, serr, sizeof(serr));
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Pubkey %s\n", serr);
+		LOG(L_ERR, "STIR module:decrypt_identity: Pubkey %s\n", serr);
 		return -1;
 	}
 
@@ -369,7 +267,7 @@ int ec_verify(char *sencedsha, int iencedshalen, char *ssha, int sshasize, int *
 	eckey = EVP_PKEY_get1_EC_KEY(pkey);
 	EVP_PKEY_free(pkey);
 	if (eckey == NULL) {
-		LOG(L_ERR, "AUTH_IDENTITY:decrypt_identity: Error getting EC key\n");
+		LOG(L_ERR, "STIR module:decrypt_identity: Error getting EC key\n");
 		return -2;
 	}
 
