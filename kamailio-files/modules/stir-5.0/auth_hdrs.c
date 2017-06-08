@@ -178,7 +178,6 @@ int datehdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 	}
 	if (!msg->date) {
 		LOG(L_ERR, "STIR module:datehdr_proc: DATE header field is not found\n");
-		LOG(L_ERR, "here is msg date: %s \n", msg->date);
 		return AUTH_NOTFOUND;
 	}
 	/* we must call parse_date_header explicitly */

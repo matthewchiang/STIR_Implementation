@@ -206,15 +206,15 @@ int verify_x509(X509 *pcert, X509_STORE *pcacerts)
 //output: sencb64 = base64(sign(hash(inputstr)))
 int ec_sign(dynstr *inputstr, dynstr *sencb64, EC_KEY *ec_privkey) {
 
-    //hash message, store as dgst
-    char* dgst = (char*)malloc(SHA256_DIGEST_LENGTH + 1);
-    SHA256((unsigned char*)getstr_dynstr(inputstr).s, getstr_dynstr(inputstr).len, dgst);
+	//hash message, store as dgst
+	char* dgst = (char*)malloc(SHA256_DIGEST_LENGTH + 1);
+	SHA256((unsigned char*)getstr_dynstr(inputstr).s, getstr_dynstr(inputstr).len, (unsigned char*)dgst);
 
-    //sign dgst
+	//sign dgst
 	ECDSA_SIG *sig = (ECDSA_SIG *)malloc(128);
-    sig = ECDSA_do_sign((unsigned char*)dgst, strlen(digest), ec_privkey);
+	sig = ECDSA_do_sign((unsigned char*)dgst, strlen(dgst), ec_privkey);
 
-    char* to_r = (char*)malloc(32);
+	char* to_r = (char*)malloc(32);
 	char* to_s = (char*)malloc(32);
 	BN_bn2bin(sig->r, (uint8_t*)to_r);
 	BN_bn2bin(sig->s, (uint8_t*)to_s);
