@@ -181,15 +181,15 @@ static int mod_init(void)
 	 *
 	 */
 	if (glb_sprivkeypath[0]==0) {
-		LOG(L_WARN, "STIR module:mod_init: Private key path is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: Private key path is missing! Authentication service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 	if (!glb_authservice_disabled && glb_sservercerturl[0]==0) {
-		LOG(L_WARN, "STIR module:mod_init: URL of certificate of the server is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: URL of certificate of the server is missing! Authentication service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 	if (!glb_authservice_disabled && glb_sservercertpath[0]==0) {
-		LOG(L_WARN, "STIR module:mod_init: Path of certificate of the server is missing! Authorization service is disabled\n");
+		LOG(L_WARN, "STIR module:mod_init: Path of certificate of the server is missing! Authentication service is disabled\n");
 		glb_authservice_disabled=1;
 	}
 
@@ -440,12 +440,16 @@ static void mod_deinit(void)
 // The Date header must indicate a time within 60 seconds of the receipt of a message
 static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 {
+
+	LOG(L_ERR, "Entering check_date()\n");
+
 	time_t tnow, tmsg;
 	int ires;
 
 	//check that date header exists
+	//if date error or not found, return error
 	ires=datehdr_proc(NULL, NULL, msg);
-	if (ires) { //either error or not found
+	if (ires) { //error or not found
 		if (ires == AUTH_NOTFOUND) {
 			LOG(L_ERR, "STIR module:check_date(verifier): date not found\n");
 		}
@@ -472,7 +476,7 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 	}
 
 	if (tnow > tmsg + glb_iauthval) {
-		LOG(L_ERR, "STIR module:check_date(verifier): Outdated date header value (>%i difference)\n", glb_iauthval);
+		LOG(L_ERR, "STIR module:check_date(verifier): Outdated date header value (>%i second difference)\n", glb_iauthval);
 		LOG(L_ERR, "STIR module:check_date(verifier): tmsg: %ld\n", tmsg);
 		LOG(L_ERR, "STIR module:check_date(verifier): tnow: %ld\n", tnow);
 		return -4;
@@ -488,7 +492,7 @@ static int check_date(struct sip_msg* msg, char* srt1, char* str2)
 static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 {
 
-
+	LOG(L_ERR, "Entering get_certificate()\n");
 
 	//extract URL from Identity header
 	if (getURLFromIdentity(&glb_tcert.surl, msg)) {
@@ -517,7 +521,7 @@ static int get_certificate(struct sip_msg* msg, char* srt1, char* str2)
 		return -3;
 	}
 
-	LOG(L_ERR, "STIR module:get_certificate: cert checks out\n");
+	LOG(L_ERR, "STIR module:get_certificate: Got cert OK\n");
 
 	return 1;
 }

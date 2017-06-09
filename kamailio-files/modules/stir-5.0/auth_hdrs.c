@@ -168,8 +168,8 @@ int cseqhdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 }
 
 // Date
-// Input: sip msg with date in msg->date
-// sout = date->body
+// Input: sip msg (if date exists in msg, is in msg->date)
+// Output: sout = date->body ; return okay, error, or not found
 int datehdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 {
 	if ((!msg->date) && (parse_headers(msg, HDR_DATE_F, 0) == -1)) {
@@ -287,7 +287,8 @@ int identityhdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 	return AUTH_OK;
 }
 
-/* Identity-info */
+/* 
+//Identity-info
 int identityinfohdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 {
 	if (!msg->identity_info && (parse_headers(msg, HDR_IDENTITY_INFO_F, 0) == -1)) {
@@ -298,7 +299,7 @@ int identityinfohdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 		LOG(L_ERR, "STIR module:identityinfohdr_proc: IDENTITY-INFO header field is not found\n");
 		return AUTH_NOTFOUND;
 	}
-	/* we must call parse_identityinfo_header explicitly */
+	// we must call parse_identityinfo_header explicitly
 	if ((!(msg->identity_info)->parsed) && (parse_identityinfo_header(msg) < 0)) {
 		LOG(L_ERR, "STIR module:identityinfohdr_proc: Error while parsing IDENTITY-INFO body\n");
 		return AUTH_ERROR;
@@ -311,9 +312,13 @@ int identityinfohdr_proc(str *sout, str *soutopt, struct sip_msg *msg)
 
 	return AUTH_OK;
 }
+*/
 
 
 int getURLFromIdentity(str *sout, struct sip_msg *msg) {
+
+	LOG(L_ERR, "Entering getURL()\n");
+
 	if (!msg->identity && (parse_headers(msg, HDR_IDENTITY_F, 0) == -1)) {
 		LOG(L_ERR, "STIR module:identityhdr_proc: Error while parsing IDENTITY header\n");
 		return AUTH_ERROR;
