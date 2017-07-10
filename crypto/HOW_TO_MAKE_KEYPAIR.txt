@@ -1,3 +1,3 @@
 openssl ecparam -name prime256v1 -genkey -out priv.pem
-openssl req -x509 -new -key priv.pem -out cert.pem
+openssl req -x509 -new -days 365 -key priv.pem -out cert.pem
 openssl x509 -outform der -in cert.pem -out cert.der
