@@ -1,0 +1,1 @@
+Note: Module is intended to grab and edit SDP of outgoing and incoming messages. It has some success, but is incomplete. Its development was stopped because it was decided that Kamailio is not the proper authority to edit SDP -- this should be done by the SIP phone.
